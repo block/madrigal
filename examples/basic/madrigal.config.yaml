@@ -1,0 +1,23 @@
+sources:
+  - "knowledge/**/*.md"
+
+domains:
+  accessibility:
+    description: "Accessibility guidelines and best practices"
+  getting-started:
+    description: "Onboarding and setup guides"
+
+brands:
+  acme:
+    systems:
+      - web
+    include:
+      - global
+
+platforms:
+  skill-file:
+    format: skill-md
+  json-export:
+    format: json-bundle
+  ai-rules:
+    format: ai-rules-md
