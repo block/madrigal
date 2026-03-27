@@ -98,6 +98,10 @@ export {
   defaultPreprocessorRegistry,
 } from './preprocessors/index.js';
 
+// Propose (authoring assistant)
+export type { LlmCompletionFn, ProposeOptions, ProposeResult } from './propose.js';
+export { propose, parseProposedUnits, findRelated } from './propose.js';
+
 // Adapters
 export type {
   StorageAdapter,
