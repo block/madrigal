@@ -3,6 +3,7 @@ import { join, relative } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { loadConfig } from './config.js';
 import { loadKnowledge } from './loader.js';
+import { BM25Index } from './search/bm25.js';
 import type { KnowledgeUnit } from './schema/index.js';
 import type { MadrigalConfig } from './config.js';
 import type { Enforcement } from './enforcement.js';
@@ -322,42 +323,16 @@ export function findRelated(
   proposed: ProposedUnit,
   existingUnits: KnowledgeUnit[],
 ): Array<{ id: string; reason: string }> {
-  const results: Array<{ id: string; reason: string; score: number }> = [];
+  if (existingUnits.length === 0) return [];
 
-  for (const existing of existingUnits) {
-    let score = 0;
-    const reasons: string[] = [];
-
-    // Tag overlap
-    const sharedTags = proposed.tags.filter((t) => existing.tags.includes(t));
-    if (sharedTags.length > 0) {
-      score += sharedTags.length;
-      reasons.push(`tags overlap: ${sharedTags.join(', ')}`);
-    }
-
-    // Same domain
-    if (proposed.domain === existing.domain) {
-      score += 0.5;
-    }
-
-    // Title word overlap (crude but effective)
-    const proposedWords = new Set(proposed.title.toLowerCase().split(/\W+/));
-    const existingWords = new Set(existing.title.toLowerCase().split(/\W+/));
-    const sharedWords = [...proposedWords].filter(
-      (w) => existingWords.has(w) && w.length > 3
-    );
-    if (sharedWords.length >= 2) {
-      score += sharedWords.length * 0.5;
-      reasons.push('similar topic');
-    }
-
-    if (score >= 1.5) {
-      results.push({ id: existing.id, reason: reasons.join('; '), score });
-    }
-  }
+  const index = new BM25Index(existingUnits);
+  const query = `${proposed.title} ${proposed.body.slice(0, 500)} ${proposed.tags.join(' ')}`;
+  const results = index.search(query, 5);
 
   return results
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-    .map(({ id, reason }) => ({ id, reason }));
+    .filter((r) => r.score > 0)
+    .map((r) => ({
+      id: r.unit.id,
+      reason: `content similarity (${r.score.toFixed(2)})`,
+    }));
 }

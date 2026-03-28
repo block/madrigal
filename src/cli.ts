@@ -74,6 +74,12 @@ async function main() {
       return runValidate();
     case 'propose':
       return runPropose();
+    case 'serve':
+      return runServe();
+    case 'check':
+      return runCheck();
+    case 'eval':
+      return runEvalCmd();
     default:
       printUsage();
       process.exit(command ? 1 : 0);
@@ -87,11 +93,17 @@ Commands:
   build       Compile knowledge units to all platforms
   validate    Check config and knowledge units for errors
   propose     Scaffold a new knowledge unit from rough input
+  serve       Start an MCP server over stdio
+  check       Check content against knowledge base for compliance
+  eval        Evaluate search quality against golden prompts
 
 Options:
   build [--platform <name>] [--dry-run]
   validate
   propose [--domain <d>] [--brand <b>] [--enforcement <e>] [--batch] <input>
+  serve [--bundle <path>]
+  check [--brand <b>] [--domain <d>] [--format markdown|json|sarif] <input>
+  eval [--golden-dir <path>]
 
 Environment:
   ANTHROPIC_API_KEY   Required for 'propose' command (default provider)
@@ -312,6 +324,128 @@ async function runPropose() {
     console.error(`Propose failed: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
+}
+
+/**
+ * madrigal serve [--bundle <path>]
+ */
+async function runServe() {
+  const bundlePath = parseFlag('--bundle');
+
+  const { serveMcp } = await import('./serve/mcp-server.js');
+  await serveMcp({
+    baseDir: process.cwd(),
+    bundlePath: bundlePath || undefined,
+  });
+}
+
+/**
+ * madrigal check [--brand <b>] [--domain <d>] [--format markdown|json|sarif] <input>
+ */
+async function runCheck() {
+  const brand = parseFlag('--brand');
+  const domain = parseFlag('--domain');
+  const format = (parseFlag('--format') || 'markdown') as 'markdown' | 'json' | 'sarif';
+  const baseDir = process.cwd();
+
+  // Collect input from args or stdin
+  const flagsToSkip = new Set(['--brand', '--domain', '--format', 'check']);
+  const inputParts: string[] = [];
+  for (let i = 1; i < args.length; i++) {
+    if (flagsToSkip.has(args[i])) {
+      if (args[i] !== 'check') i++;
+      continue;
+    }
+    inputParts.push(args[i]);
+  }
+  let input = inputParts.join(' ');
+
+  if (!input.trim() && !process.stdin.isTTY) {
+    input = await readStdin();
+  }
+
+  if (!input.trim()) {
+    console.error('No input provided. Pass text as arguments or pipe via stdin.');
+    console.error('  madrigal check "The transaction failed"');
+    console.error('  echo "button text" | madrigal check --brand cashapp');
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const loadResult = await loadKnowledge({ sources: config.sources, config, baseDir });
+
+  const { BM25SearchAdapter } = await import('./search/adapter.js');
+  const { checkCompliance } = await import('./compliance/checker.js');
+  const { formatReport } = await import('./compliance/report.js');
+
+  const searchAdapter = new BM25SearchAdapter(loadResult.units);
+  const result = await checkCompliance({
+    content: input,
+    brand: brand || undefined,
+    domain: domain || undefined,
+    searchAdapter,
+    units: loadResult.units,
+    config,
+    baseDir,
+  });
+
+  const report = formatReport(result, {
+    format,
+    includeSuggestions: true,
+    includeContext: false,
+  });
+
+  console.log(report);
+
+  if (!result.passed) {
+    process.exit(1);
+  }
+}
+
+/**
+ * madrigal eval [--golden-dir <path>]
+ */
+async function runEvalCmd() {
+  const goldenDir = parseFlag('--golden-dir') || 'eval/golden-prompts';
+  const baseDir = process.cwd();
+
+  const config = loadConfig();
+  const loadResult = await loadKnowledge({ sources: config.sources, config, baseDir });
+
+  if (loadResult.units.length === 0) {
+    console.error('No knowledge units found.');
+    process.exit(1);
+  }
+
+  const { BM25SearchAdapter } = await import('./search/adapter.js');
+  const { runEval } = await import('./eval/harness.js');
+
+  const searchAdapter = new BM25SearchAdapter(loadResult.units);
+  const summary = await runEval(goldenDir, searchAdapter);
+
+  if (summary.total === 0) {
+    console.log(`No golden prompts found in ${goldenDir}/`);
+    process.exit(0);
+  }
+
+  console.log(`Eval: ${summary.passed}/${summary.total} passed (${Math.round(summary.passRate * 100)}%)\n`);
+
+  for (const result of summary.results) {
+    const icon = result.passed ? 'PASS' : 'FAIL';
+    const label = result.prompt.description || result.prompt.query.slice(0, 60);
+    console.log(`  [${icon}] ${label}`);
+
+    if (!result.passed && result.failureReason) {
+      console.log(`         ${result.failureReason}`);
+    }
+  }
+
+  if (summary.failed > 0) {
+    console.log(`\n${summary.failed} eval(s) failed.`);
+    process.exit(1);
+  }
+
+  console.log('\nAll evals passed.');
 }
 
 function readStdin(): Promise<string> {

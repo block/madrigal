@@ -106,6 +106,13 @@ export {
 export type { LlmCompletionFn, ProposeOptions, ProposeResult } from './propose.js';
 export { propose, parseProposedUnits, findRelated } from './propose.js';
 
+// Search (BM25 implementation)
+export { BM25Index, tokenize, type BM25Options } from './search/index.js';
+export { BM25SearchAdapter } from './search/index.js';
+
+// Serve (MCP server)
+export { serveMcp, type ServeOptions } from './serve/index.js';
+
 // Adapters
 export type {
   StorageAdapter,
@@ -126,3 +133,15 @@ export type {
   OutputFormat,
   ReportOptions,
 } from './compliance/index.js';
+export { checkCompliance, type CheckOptions } from './compliance/checker.js';
+export { formatReport } from './compliance/report.js';
+
+// Eval
+export {
+  loadGoldenPrompts,
+  evaluatePrompt,
+  runEval,
+  type GoldenPrompt,
+  type EvalResult,
+  type EvalSummary,
+} from './eval/index.js';
