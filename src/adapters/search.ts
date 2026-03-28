@@ -14,6 +14,9 @@ export interface RuleFilter {
   /** Filter by enforcement levels */
   enforcement?: Enforcement[];
 
+  /** Filter by kind (e.g., 'rule', 'glossary', 'rubric') */
+  kind?: string;
+
   /** Filter by tags (all must match) */
   tags?: string[];
 
