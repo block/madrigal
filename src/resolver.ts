@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { MadrigalConfig } from './config.js';
 import type { KnowledgeUnit } from './schema/index.js';
-import type { Severity } from './severity.js';
+import type { Enforcement } from './enforcement.js';
 
 /**
  * Options for resolving knowledge units.
@@ -15,6 +15,10 @@ export interface ResolveOptions {
   config: MadrigalConfig;
   /** Resolve for a specific brand (if omitted, returns all units) */
   brand?: string;
+  /** Filter by kind */
+  kind?: string;
+  /** Filter by attributes. Array-contains for array attributes, equality for scalars. */
+  where?: Record<string, string | string[]>;
   /** Base directory for finding override files */
   baseDir?: string;
 }
@@ -22,11 +26,11 @@ export interface ResolveOptions {
 /**
  * Override entry from overrides.yaml.
  */
-export interface SeverityOverride {
+export interface EnforcementOverride {
   /** ID of the knowledge unit to override */
   id: string;
-  /** New severity level */
-  severity: Severity;
+  /** New enforcement level */
+  enforcement: Enforcement;
   /** Reason for the override */
   reason?: string;
 }
@@ -35,7 +39,7 @@ export interface SeverityOverride {
  * Overrides file structure.
  */
 export interface OverridesFile {
-  overrides?: SeverityOverride[];
+  overrides?: EnforcementOverride[];
 }
 
 /**
@@ -45,7 +49,7 @@ export interface OverridesFile {
  * 1. Start with units matching the brand's `include` list (e.g., 'global')
  * 2. Layer on brand-specific units
  * 3. If same `id` exists in both layers, brand-specific wins (deep merge)
- * 4. Apply severity overrides from overrides.yaml files
+ * 4. Apply enforcement overrides from overrides.yaml files
  *
  * @param options - Resolution options
  * @returns Resolved knowledge units for the brand
@@ -104,14 +108,14 @@ export function resolveForBrand(options: ResolveOptions): KnowledgeUnit[] {
     }
   }
 
-  // Apply severity overrides from overrides.yaml files
+  // Apply enforcement overrides from overrides.yaml files
   const overrides = loadOverrides(brand, baseDir);
   for (const override of overrides) {
     const unit = unitMap.get(override.id);
     if (unit) {
       unitMap.set(override.id, {
         ...unit,
-        severity: override.severity,
+        enforcement: override.enforcement,
       });
     }
   }
@@ -137,14 +141,16 @@ function mergeUnits(
 }
 
 /**
- * Load severity overrides from overrides.yaml files.
+ * Load enforcement overrides from overrides.yaml files.
  *
  * Searches for:
  * 1. knowledge/<brand>/overrides.yaml
  * 2. knowledge/brands/<brand>/overrides.yaml
+ *
+ * Supports both 'enforcement' and legacy 'severity' field names.
  */
-function loadOverrides(brand: string, baseDir: string): SeverityOverride[] {
-  const overrides: SeverityOverride[] = [];
+function loadOverrides(brand: string, baseDir: string): EnforcementOverride[] {
+  const overrides: EnforcementOverride[] = [];
 
   const possiblePaths = [
     join(baseDir, 'knowledge', brand, 'overrides.yaml'),
@@ -156,9 +162,17 @@ function loadOverrides(brand: string, baseDir: string): SeverityOverride[] {
     if (existsSync(overridePath)) {
       try {
         const content = readFileSync(overridePath, 'utf-8');
-        const parsed = parseYaml(content) as OverridesFile;
+        const parsed = parseYaml(content) as Record<string, unknown>;
         if (parsed.overrides && Array.isArray(parsed.overrides)) {
-          overrides.push(...parsed.overrides);
+          for (const entry of parsed.overrides) {
+            const raw = entry as Record<string, unknown>;
+            overrides.push({
+              id: String(raw.id),
+              // Support both 'enforcement' and legacy 'severity' field
+              enforcement: (raw.enforcement || raw.severity) as Enforcement,
+              reason: raw.reason ? String(raw.reason) : undefined,
+            });
+          }
         }
       } catch {
         // Ignore parse errors for override files
@@ -167,6 +181,70 @@ function loadOverrides(brand: string, baseDir: string): SeverityOverride[] {
   }
 
   return overrides;
+}
+
+/**
+ * Resolve knowledge units with brand resolution + kind/attribute filtering.
+ *
+ * Composes resolveForBrand with kind and where filters.
+ * Use this when you need both brand resolution and attribute-based filtering.
+ */
+export function resolveUnits(options: ResolveOptions): KnowledgeUnit[] {
+  let units = resolveForBrand(options);
+
+  if (options.kind) {
+    units = units.filter((u) => u.kind === options.kind);
+  }
+
+  if (options.where) {
+    units = filterByAttributes(units, options.where);
+  }
+
+  return units;
+}
+
+/**
+ * Filter units by attribute matching.
+ *
+ * For each key in the where clause:
+ * - If the unit's attribute value is an array and the filter is a string:
+ *   checks if the array contains the string.
+ * - If the unit's attribute value is a string and the filter is a string:
+ *   checks equality.
+ * - If the filter is an array: checks if the unit's attribute value
+ *   is in the filter array (OR for scalars) or has any overlap (for arrays).
+ */
+export function filterByAttributes(
+  units: KnowledgeUnit[],
+  where: Record<string, string | string[]>
+): KnowledgeUnit[] {
+  return units.filter((unit) => {
+    for (const [key, filterValue] of Object.entries(where)) {
+      const attrValue = unit.attributes[key];
+      if (attrValue === undefined) return false;
+
+      if (Array.isArray(filterValue)) {
+        // Filter is an array — check overlap
+        if (Array.isArray(attrValue)) {
+          // Both arrays: any overlap
+          if (!filterValue.some((fv) => (attrValue as string[]).includes(fv))) return false;
+        } else {
+          // Attr is scalar, filter is array: check if scalar is in array
+          if (!filterValue.includes(String(attrValue))) return false;
+        }
+      } else {
+        // Filter is a string
+        if (Array.isArray(attrValue)) {
+          // Attr is array: check if it contains the filter value
+          if (!(attrValue as string[]).includes(filterValue)) return false;
+        } else {
+          // Both scalars: equality
+          if (String(attrValue) !== filterValue) return false;
+        }
+      }
+    }
+    return true;
+  });
 }
 
 /**
@@ -202,13 +280,13 @@ export function filterByDomain(
 }
 
 /**
- * Filter units by severity.
+ * Filter units by enforcement level.
  */
-export function filterBySeverity(
+export function filterByEnforcement(
   units: KnowledgeUnit[],
-  severity: Severity
+  enforcement: Enforcement
 ): KnowledgeUnit[] {
-  return units.filter((u) => u.severity === severity);
+  return units.filter((u) => u.enforcement === enforcement);
 }
 
 /**

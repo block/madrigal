@@ -1,4 +1,4 @@
-import type { Severity } from '../severity.js';
+import type { Enforcement } from '../enforcement.js';
 
 /**
  * Result of matching a code pattern against a knowledge unit rule.
@@ -11,11 +11,11 @@ export interface MatchResult {
 }
 
 /**
- * Brand-specific severity override configuration.
+ * Brand-specific enforcement override configuration.
  */
 export interface OverrideConfig {
   brand: string;
   knowledgeUnitId: string;
-  severity: Severity;
+  enforcement: Enforcement;
   reason: string;
 }

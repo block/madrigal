@@ -91,7 +91,7 @@ Commands:
 Options:
   build [--platform <name>] [--dry-run]
   validate
-  propose [--domain <d>] [--brand <b>] [--severity <s>] [--batch] <input>
+  propose [--domain <d>] [--brand <b>] [--enforcement <e>] [--batch] <input>
 
 Environment:
   ANTHROPIC_API_KEY   Required for 'propose' command (default provider)
@@ -235,16 +235,16 @@ function createAnthropicCompletion(apiKey: string): LlmCompletionFn {
 }
 
 /**
- * madrigal propose [--domain <d>] [--brand <b>] [--severity <s>] [--batch] <input>
+ * madrigal propose [--domain <d>] [--brand <b>] [--enforcement <e>] [--batch] <input>
  */
 async function runPropose() {
   const domain = parseFlag('--domain');
   const brand = parseFlag('--brand');
-  const severity = parseFlag('--severity');
+  const enforcement = parseFlag('--enforcement');
   const batch = hasFlag('--batch');
 
   // Collect input: from args first, fall back to stdin
-  const flagsToSkip = new Set(['--domain', '--brand', '--severity', '--batch', 'propose']);
+  const flagsToSkip = new Set(['--domain', '--brand', '--enforcement', '--batch', 'propose']);
   let input = '';
 
   // Try to collect non-flag args as input
@@ -281,7 +281,7 @@ async function runPropose() {
     complete: createAnthropicCompletion(apiKey),
     domain,
     brand,
-    severity: severity as ProposeOptions['severity'],
+    enforcement: enforcement as ProposeOptions['enforcement'],
     batch,
     baseDir: process.cwd(),
   };
@@ -295,10 +295,10 @@ async function runPropose() {
         continue;
       }
       console.log(`\nProposed: ${result.filePath}`);
-      console.log(`  title:    "${result.title}"`);
-      console.log(`  domain:   ${result.domain}`);
-      console.log(`  severity: ${result.severity}`);
-      console.log(`  tags:     ${result.tags.join(', ')}`);
+      console.log(`  title:       "${result.title}"`);
+      console.log(`  domain:      ${result.domain}`);
+      console.log(`  enforcement: ${result.enforcement}`);
+      console.log(`  tags:        ${result.tags.join(', ')}`);
       if (result.related.length > 0) {
         console.log(`\n  Related existing units:`);
         for (const r of result.related) {

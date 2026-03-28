@@ -6,8 +6,10 @@ function makeUnit(overrides: Partial<KnowledgeUnit> & { id: string; title: strin
   return {
     body: 'test',
     domain: 'default',
+    kind: 'rule',
     tags: [],
-    severity: 'info',
+    enforcement: 'may',
+    attributes: {},
     provenance: { origin: 'human-authored', confidence: 1.0 },
     ...overrides,
   };
@@ -24,7 +26,7 @@ domain: content
 tags:
   - buttons
   - copy
-severity: warning
+enforcement: should
 </frontmatter>
 <body>
 # Button Labels
@@ -38,7 +40,7 @@ Use verb+object pattern for button labels.
     expect(units[0].filename).toBe('button-labels.md');
     expect(units[0].title).toBe('Button labels — verb+object');
     expect(units[0].domain).toBe('content');
-    expect(units[0].severity).toBe('warning');
+    expect(units[0].enforcement).toBe('should');
     expect(units[0].tags).toEqual(['buttons', 'copy']);
     expect(units[0].body).toContain('Use verb+object pattern');
   });
@@ -50,7 +52,7 @@ Use verb+object pattern for button labels.
 <frontmatter>
 title: "First rule"
 domain: accessibility
-severity: error
+enforcement: must
 tags:
   - a11y
 </frontmatter>
@@ -62,7 +64,7 @@ tags:
 <frontmatter>
 title: "Second rule"
 domain: content
-severity: info
+enforcement: may
 tags:
   - writing
 </frontmatter>
@@ -87,7 +89,7 @@ title: "Minimal unit"
 
     const units = parseProposedUnits(response);
     expect(units[0].domain).toBe('content');
-    expect(units[0].severity).toBe('warning');
+    expect(units[0].enforcement).toBe('should');
     expect(units[0].tags).toEqual([]);
     expect(units[0].brand).toBeUndefined();
     expect(units[0].system).toBeUndefined();
@@ -102,7 +104,7 @@ title: "Brand-specific rule"
 domain: visual
 brand: acme
 system: web
-severity: warning
+enforcement: should
 tags:
   - branding
 </frontmatter>
@@ -126,7 +128,7 @@ tags:
 <filename>my-rule.md</filename>
 <frontmatter>
 domain: content
-severity: info
+enforcement: may
 </frontmatter>
 <body>Body</body>
 </unit>`;
@@ -142,7 +144,7 @@ severity: info
 <frontmatter>
 title: "Color tokens: use semantic names"
 domain: visual
-severity: warning
+enforcement: should
 tags:
   - tokens
 </frontmatter>
@@ -163,7 +165,7 @@ describe('findRelated', () => {
   ];
 
   it('returns units with overlapping tags above threshold', () => {
-    const proposed = { filename: 'f.md', title: 'New rule', domain: 'content', severity: 'warning', tags: ['buttons', 'copy'], body: '' };
+    const proposed = { filename: 'f.md', title: 'New rule', domain: 'content', enforcement: 'should', tags: ['buttons', 'copy'], body: '' };
     const related = findRelated(proposed, existing);
     expect(related.length).toBeGreaterThan(0);
     expect(related[0].id).toBe('btn-copy');
@@ -172,7 +174,7 @@ describe('findRelated', () => {
 
   it('gives same-domain bonus', () => {
     // Two tags overlap + same domain should score higher than two tags overlap + different domain
-    const proposed = { filename: 'f.md', title: 'New visual rule', domain: 'visual', severity: 'warning', tags: ['color', 'tokens'], body: '' };
+    const proposed = { filename: 'f.md', title: 'New visual rule', domain: 'visual', enforcement: 'should', tags: ['color', 'tokens'], body: '' };
     const related = findRelated(proposed, existing);
     // color-tokens shares domain + 2 tags, a11y-contrast shares 1 tag different domain
     expect(related[0].id).toBe('color-tokens');
@@ -180,7 +182,7 @@ describe('findRelated', () => {
 
   it('excludes units below the 1.5 threshold', () => {
     // Only one tag overlap + different domain = 1.0 (below 1.5)
-    const proposed = { filename: 'f.md', title: 'Something unrelated', domain: 'other', severity: 'info', tags: ['icons'], body: '' };
+    const proposed = { filename: 'f.md', title: 'Something unrelated', domain: 'other', enforcement: 'may', tags: ['icons'], body: '' };
     const related = findRelated(proposed, existing);
     expect(related).toHaveLength(0);
   });
@@ -188,7 +190,7 @@ describe('findRelated', () => {
   it('includes title word overlap bonus', () => {
     // Title overlap alone (2 words * 0.5 = 1.0) is below threshold.
     // Add same domain (+0.5) to reach 1.5.
-    const proposed = { filename: 'f.md', title: 'Color contrast accessibility', domain: 'accessibility', severity: 'info', tags: [], body: '' };
+    const proposed = { filename: 'f.md', title: 'Color contrast accessibility', domain: 'accessibility', enforcement: 'may', tags: [], body: '' };
     const related = findRelated(proposed, existing);
     // a11y-contrast has "color" and "contrast" in title (both > 3 chars) + same domain
     const match = related.find((r) => r.id === 'a11y-contrast');
@@ -200,13 +202,13 @@ describe('findRelated', () => {
     const manyUnits = Array.from({ length: 10 }, (_, i) =>
       makeUnit({ id: `unit-${i}`, title: `Shared topic words here`, domain: 'content', tags: ['shared-tag-a', 'shared-tag-b'] }),
     );
-    const proposed = { filename: 'f.md', title: 'Shared topic words here', domain: 'content', severity: 'info', tags: ['shared-tag-a', 'shared-tag-b'], body: '' };
+    const proposed = { filename: 'f.md', title: 'Shared topic words here', domain: 'content', enforcement: 'may', tags: ['shared-tag-a', 'shared-tag-b'], body: '' };
     const related = findRelated(proposed, manyUnits);
     expect(related.length).toBeLessThanOrEqual(5);
   });
 
   it('sorts by score descending', () => {
-    const proposed = { filename: 'f.md', title: 'Color token naming patterns', domain: 'visual', severity: 'info', tags: ['color', 'tokens', 'contrast'], body: '' };
+    const proposed = { filename: 'f.md', title: 'Color token naming patterns', domain: 'visual', enforcement: 'may', tags: ['color', 'tokens', 'contrast'], body: '' };
     const related = findRelated(proposed, existing);
     // color-tokens: 2 tags + same domain + title overlap = highest
     // a11y-contrast: 2 tags + title overlap ("color") but only 1 word >3 chars shared = lower

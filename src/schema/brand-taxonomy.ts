@@ -1,4 +1,4 @@
-import type { Severity } from '../severity.js';
+import type { Enforcement } from '../enforcement.js';
 
 /**
  * A Brand represents a distinct brand identity within the organization.
@@ -38,18 +38,18 @@ export interface CreateBrand {
 }
 
 /**
- * Brand-specific severity override for a knowledge unit.
+ * Brand-specific enforcement override for a knowledge unit.
  * Allows a global rule to have different enforcement levels per brand.
  */
-export interface BrandSeverityOverride {
+export interface BrandEnforcementOverride {
   /** The brand this override applies to */
   brandId: string;
 
   /** The knowledge unit being overridden */
   knowledgeUnitId: string;
 
-  /** The brand-specific severity level */
-  severity: Severity;
+  /** The brand-specific enforcement level */
+  enforcement: Enforcement;
 
   /** Reason for the override */
   reason?: string;
@@ -62,12 +62,12 @@ export interface BrandSeverityOverride {
 }
 
 /**
- * Input for creating a brand severity override.
+ * Input for creating a brand enforcement override.
  */
-export interface CreateBrandSeverityOverride {
+export interface CreateBrandEnforcementOverride {
   brandId: string;
   knowledgeUnitId: string;
-  severity: Severity;
+  enforcement: Enforcement;
   reason?: string;
   createdBy?: string;
 }

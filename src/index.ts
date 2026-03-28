@@ -8,18 +8,18 @@ export type {
   KnowledgeUnitWithEmbedding,
   Brand,
   CreateBrand,
-  BrandSeverityOverride,
-  CreateBrandSeverityOverride,
+  BrandEnforcementOverride,
+  CreateBrandEnforcementOverride,
 } from './schema/index.js';
 
-// Severity
-export type { Severity } from './severity.js';
+// Enforcement
+export type { Enforcement } from './enforcement.js';
 export {
-  SEVERITY_ORDER,
-  compareSeverity,
+  ENFORCEMENT_ORDER,
+  compareEnforcement,
   isEnforceable,
-  parseSeverity,
-} from './severity.js';
+  parseEnforcement,
+} from './enforcement.js';
 
 // Provenance
 export type {
@@ -38,6 +38,7 @@ export {
 export type {
   MadrigalConfig,
   DomainConfig,
+  KindConfig,
   BrandConfig,
   PlatformConfig,
   ValidationResult,
@@ -48,6 +49,7 @@ export {
   loadConfig,
   validateConfig,
   getDomainNames,
+  getKindNames,
   getBrandNames,
   getPlatformNames,
 } from './config.js';
@@ -72,14 +74,16 @@ export { build, buildPlatformByName } from './pipeline.js';
 // Resolver
 export type {
   ResolveOptions,
-  SeverityOverride,
+  EnforcementOverride,
   OverridesFile,
 } from './resolver.js';
 export {
   resolveForBrand,
+  resolveUnits,
   groupUnitsBy,
   filterByDomain,
-  filterBySeverity,
+  filterByEnforcement,
+  filterByAttributes,
   filterBySystem,
 } from './resolver.js';
 

@@ -1,6 +1,6 @@
 import type { Format, FormatOptions } from './registry.js';
 import type { KnowledgeUnit } from '../schema/index.js';
-import { compareSeverity } from '../severity.js';
+import { compareEnforcement } from '../enforcement.js';
 
 /**
  * SKILL.md format.
@@ -9,7 +9,7 @@ import { compareSeverity } from '../severity.js';
  * Output structure:
  * - Title and metadata header
  * - Grouped by domain
- * - Rules sorted by severity (errors first)
+ * - Rules sorted by enforcement (must first)
  * - Each rule as a markdown section with tags
  */
 export const skillMdFormat: Format = {
@@ -48,8 +48,8 @@ export const skillMdFormat: Format = {
     for (const domain of sortedDomains) {
       const domainUnits = byDomain.get(domain)!;
 
-      // Sort units by severity (most severe first)
-      domainUnits.sort((a, b) => compareSeverity(a.severity, b.severity));
+      // Sort units by enforcement (most strict first)
+      domainUnits.sort((a, b) => compareEnforcement(a.enforcement, b.enforcement));
 
       lines.push(`## ${formatDomainTitle(domain)}`);
       lines.push('');
@@ -80,9 +80,9 @@ function formatDomainTitle(domain: string): string {
 function formatUnit(unit: KnowledgeUnit): string {
   const lines: string[] = [];
 
-  // Title with severity badge
-  const severityBadge = getSeverityBadge(unit.severity);
-  lines.push(`### ${unit.title} ${severityBadge}`);
+  // Title with enforcement badge
+  const enforcementBadge = getEnforcementBadge(unit.enforcement);
+  lines.push(`### ${unit.title} ${enforcementBadge}`);
   lines.push('');
 
   // Tags if present
@@ -98,16 +98,16 @@ function formatUnit(unit: KnowledgeUnit): string {
 }
 
 /**
- * Get a severity badge emoji.
+ * Get an enforcement badge.
  */
-function getSeverityBadge(severity: string): string {
-  switch (severity) {
-    case 'error':
-      return '[ERROR]';
-    case 'warning':
-      return '[WARNING]';
-    case 'info':
-      return '[INFO]';
+function getEnforcementBadge(enforcement: string): string {
+  switch (enforcement) {
+    case 'must':
+      return '[MUST]';
+    case 'should':
+      return '[SHOULD]';
+    case 'may':
+      return '[MAY]';
     case 'context':
       return '[CONTEXT]';
     case 'deprecated':

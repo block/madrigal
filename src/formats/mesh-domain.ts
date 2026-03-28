@@ -20,7 +20,7 @@ export interface MeshKnowledgeEntry {
   title: string;
   content: string;
   domain: string;
-  severity: string;
+  enforcement: string;
   tags: string[];
   metadata?: Record<string, unknown>;
 }
@@ -47,9 +47,11 @@ export const meshDomainFormat: Format = {
         title: unit.title,
         content: unit.body,
         domain: unit.domain,
-        severity: unit.severity,
+        enforcement: unit.enforcement,
         tags: unit.tags,
         metadata: {
+          kind: unit.kind,
+          attributes: unit.attributes,
           brand: unit.brand,
           system: unit.system,
           sourcePath: unit.sourcePath,
