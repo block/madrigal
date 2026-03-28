@@ -11,6 +11,14 @@ export interface DomainConfig {
 }
 
 /**
+ * Configuration for a knowledge kind (structural type).
+ */
+export interface KindConfig {
+  /** Human-readable description of the kind */
+  description: string;
+}
+
+/**
  * Configuration for a brand.
  */
 export interface BrandConfig {
@@ -41,6 +49,8 @@ export interface MadrigalConfig {
   sources: string[];
   /** Domain definitions (key is domain name) */
   domains: Record<string, DomainConfig>;
+  /** Kind definitions (key is kind name, structural types of knowledge) */
+  kinds: Record<string, KindConfig>;
   /** Brand definitions (key is brand name) */
   brands: Record<string, BrandConfig>;
   /** Publish platform definitions (key is platform name) */
@@ -137,6 +147,7 @@ function normalizeConfig(raw: unknown, _baseDir: string): MadrigalConfig {
   return {
     sources: config.sources as string[],
     domains: (config.domains as Record<string, DomainConfig>) || {},
+    kinds: (config.kinds as Record<string, KindConfig>) || {},
     brands: (config.brands as Record<string, BrandConfig>) || {},
     platforms: (config.platforms as Record<string, PlatformConfig>) || {},
   };
@@ -235,6 +246,13 @@ export function getDomainNames(config: MadrigalConfig): string[] {
  */
 export function getBrandNames(config: MadrigalConfig): string[] {
   return Object.keys(config.brands);
+}
+
+/**
+ * Get all kind names from the config.
+ */
+export function getKindNames(config: MadrigalConfig): string[] {
+  return Object.keys(config.kinds);
 }
 
 /**

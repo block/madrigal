@@ -1,5 +1,5 @@
 import type { KnowledgeUnit, Domain } from '../schema/knowledge-unit.js';
-import type { Severity } from '../severity.js';
+import type { Enforcement } from '../enforcement.js';
 
 /**
  * Filter for exact rule matching (deterministic search).
@@ -11,8 +11,8 @@ export interface RuleFilter {
   /** Filter by brand (use null for global rules only) */
   brand?: string | null;
 
-  /** Filter by severity levels */
-  severity?: Severity[];
+  /** Filter by enforcement levels */
+  enforcement?: Enforcement[];
 
   /** Filter by tags (all must match) */
   tags?: string[];
@@ -31,8 +31,8 @@ export interface SemanticSearchOptions {
   /** Filter by brand before searching */
   brand?: string;
 
-  /** Filter by minimum severity */
-  minSeverity?: Severity;
+  /** Filter by minimum enforcement level */
+  minEnforcement?: Enforcement;
 
   /** Maximum number of results to return */
   limit?: number;

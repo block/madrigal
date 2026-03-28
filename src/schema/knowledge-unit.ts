@@ -1,4 +1,4 @@
-import type { Severity } from '../severity.js';
+import type { Enforcement } from '../enforcement.js';
 import type { Provenance } from '../provenance.js';
 
 /**
@@ -15,10 +15,14 @@ export interface KnowledgeFrontmatter {
   id?: string;
   title?: string;
   domain?: string;
+  kind?: string;
   system?: string;
   brand?: string;
   tags?: string[];
+  enforcement?: string;
+  /** @deprecated Use enforcement instead */
   severity?: string;
+  attributes?: Record<string, unknown>;
   provenance?: Partial<Provenance>;
 }
 
@@ -39,6 +43,9 @@ export interface KnowledgeUnit {
   /** Knowledge domain this unit belongs to */
   domain: Domain;
 
+  /** Structural type of knowledge (e.g., 'rule', 'glossary', 'rubric', 'template') */
+  kind: string;
+
   /** Design system this applies to (e.g., 'market', 'arcade', 'wave') */
   system?: string;
 
@@ -49,7 +56,10 @@ export interface KnowledgeUnit {
   tags: string[];
 
   /** Enforcement level */
-  severity: Severity;
+  enforcement: Enforcement;
+
+  /** Open metadata for domain-specific attributes (surfaces, audiences, etc.) */
+  attributes: Record<string, unknown>;
 
   /** Origin and approval tracking */
   provenance: Provenance;
@@ -72,10 +82,12 @@ export interface CreateKnowledgeUnit {
   title: string;
   body: string;
   domain: Domain;
+  kind?: string;
   system?: string;
   brand?: string;
   tags: string[];
-  severity: Severity;
+  enforcement: Enforcement;
+  attributes?: Record<string, unknown>;
   provenance: Provenance;
 }
 
@@ -87,10 +99,12 @@ export interface UpdateKnowledgeUnit {
   title?: string;
   body?: string;
   domain?: Domain;
+  kind?: string;
   system?: string;
   brand?: string;
   tags?: string[];
-  severity?: Severity;
+  enforcement?: Enforcement;
+  attributes?: Record<string, unknown>;
   provenance?: Provenance;
 }
 

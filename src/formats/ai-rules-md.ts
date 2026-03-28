@@ -1,6 +1,6 @@
 import type { Format, FormatOptions } from './registry.js';
 import type { KnowledgeUnit } from '../schema/index.js';
-import { isEnforceable, compareSeverity } from '../severity.js';
+import { isEnforceable, compareEnforcement } from '../enforcement.js';
 
 /**
  * AI Rules Markdown format.
@@ -31,35 +31,35 @@ export const aiRulesMdFormat: Format = {
     lines.push('These rules are enforced when working with this codebase.');
     lines.push('');
 
-    // Filter to enforceable rules only (error, warning)
-    const enforceableUnits = units.filter((u) => isEnforceable(u.severity));
+    // Filter to enforceable rules only (must, should)
+    const enforceableUnits = units.filter((u) => isEnforceable(u.enforcement));
 
-    // Sort by severity (errors first)
-    enforceableUnits.sort((a, b) => compareSeverity(a.severity, b.severity));
+    // Sort by enforcement (must first)
+    enforceableUnits.sort((a, b) => compareEnforcement(a.enforcement, b.enforcement));
 
-    // Group by severity
-    const errors = enforceableUnits.filter((u) => u.severity === 'error');
-    const warnings = enforceableUnits.filter((u) => u.severity === 'warning');
+    // Group by enforcement
+    const musts = enforceableUnits.filter((u) => u.enforcement === 'must');
+    const shoulds = enforceableUnits.filter((u) => u.enforcement === 'should');
 
-    if (errors.length > 0) {
-      lines.push('## MUST Follow (Errors)');
+    if (musts.length > 0) {
+      lines.push('## MUST Follow');
       lines.push('');
       lines.push('These rules MUST be followed. Violations will block CI.');
       lines.push('');
 
-      for (const unit of errors) {
+      for (const unit of musts) {
         lines.push(formatRule(unit));
         lines.push('');
       }
     }
 
-    if (warnings.length > 0) {
-      lines.push('## SHOULD Follow (Warnings)');
+    if (shoulds.length > 0) {
+      lines.push('## SHOULD Follow');
       lines.push('');
       lines.push('These rules SHOULD be followed when possible.');
       lines.push('');
 
-      for (const unit of warnings) {
+      for (const unit of shoulds) {
         lines.push(formatRule(unit));
         lines.push('');
       }
@@ -67,7 +67,7 @@ export const aiRulesMdFormat: Format = {
 
     // Add context rules in a collapsed section
     const contextUnits = units.filter(
-      (u) => u.severity === 'context' || u.severity === 'info'
+      (u) => u.enforcement === 'context' || u.enforcement === 'may'
     );
     if (contextUnits.length > 0) {
       lines.push('## Additional Context');

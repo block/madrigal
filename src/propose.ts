@@ -5,7 +5,7 @@ import { loadConfig } from './config.js';
 import { loadKnowledge } from './loader.js';
 import type { KnowledgeUnit } from './schema/index.js';
 import type { MadrigalConfig } from './config.js';
-import type { Severity } from './severity.js';
+import type { Enforcement } from './enforcement.js';
 
 /**
  * A function that sends a prompt to an LLM and returns the text response.
@@ -22,8 +22,8 @@ export interface ProposeOptions {
   domain?: string;
   /** Hint: target brand (omit for global) */
   brand?: string;
-  /** Hint: severity level */
-  severity?: Severity;
+  /** Hint: enforcement level */
+  enforcement?: Enforcement;
   /** If true, decompose input into multiple KUs */
   batch?: boolean;
   /** Base directory (defaults to cwd) */
@@ -34,7 +34,7 @@ export interface ProposeResult {
   filePath: string;
   title: string;
   domain: string;
-  severity: string;
+  enforcement: string;
   tags: string[];
   related: Array<{ id: string; reason: string }>;
   skipped: boolean;
@@ -46,7 +46,7 @@ interface ProposedUnit {
   domain: string;
   brand?: string;
   system?: string;
-  severity: string;
+  enforcement: string;
   tags: string[];
   body: string;
 }
@@ -94,7 +94,7 @@ function buildPrompt(
   const brands = Object.keys(config.brands);
 
   const existingList = existingUnits
-    .map((u) => `- ${u.id}: "${u.title}" (domain: ${u.domain}, severity: ${u.severity})`)
+    .map((u) => `- ${u.id}: "${u.title}" (domain: ${u.domain}, enforcement: ${u.enforcement})`)
     .join('\n');
 
   // Pick 2 diverse examples from existing units
@@ -106,7 +106,7 @@ function buildPrompt(
   const hints: string[] = [];
   if (options.domain) hints.push(`Domain hint: ${options.domain}`);
   if (options.brand) hints.push(`Brand hint: ${options.brand} (place in brands/${options.brand}/ directory)`);
-  if (options.severity) hints.push(`Severity hint: ${options.severity}`);
+  if (options.enforcement) hints.push(`Enforcement hint: ${options.enforcement}`);
   if (!options.brand) hints.push('No brand specified — this should be a global rule (no brand field in frontmatter)');
 
   const batchInstruction = options.batch
@@ -121,7 +121,7 @@ A knowledge unit is a single, atomic rule, guideline, or pattern stored as a mar
 
 Available domains: ${domains.join(', ')}
 Available brands: ${brands.join(', ')} (omit brand field for global rules)
-Severity levels: error (must fix, blocks CI), warning (should fix), info (suggestion), context (background)
+Enforcement levels: must (must follow, blocks CI), should (should follow), may (optional guidance), context (background)
 ${hints.join('\n')}
 
 ## Existing units in this repo
@@ -150,7 +150,7 @@ tags:
   - tag1
   - tag2
   - tag3
-severity: ${options.severity || 'warning'}
+enforcement: ${options.enforcement || 'should'}
 provenance:
   origin: system-proposed
   confidence: 0.85
@@ -172,7 +172,7 @@ The body in markdown. Include:
 - Include Do/Don't examples when the guideline has concrete right/wrong applications
 - Use **Don't:** / **Do:** format (bold, with colon) for example pairs
 - Tags should be 3-5 specific terms, not generic
-- Severity: use "error" only for compliance/legal/accessibility violations. Use "warning" for best practices. Use "info" for suggestions and reference patterns.
+- Enforcement: use "must" only for compliance/legal/accessibility violations. Use "should" for best practices. Use "may" for suggestions and reference patterns.
 - Do NOT duplicate an existing unit. If the input overlaps with an existing unit, note it but still create the new unit focused on the distinct aspect.
 
 ## Input to process
@@ -204,7 +204,7 @@ function formatUnitAsFile(unit: KnowledgeUnit): string {
   if (unit.brand) frontmatter.brand = unit.brand;
   if (unit.system) frontmatter.system = unit.system;
   frontmatter.tags = unit.tags;
-  frontmatter.severity = unit.severity;
+  frontmatter.enforcement = unit.enforcement;
   frontmatter.provenance = unit.provenance;
 
   const yaml = stringifyYaml(frontmatter);
@@ -229,10 +229,11 @@ export function parseProposedUnits(response: string): ProposedUnit[] {
     const domain = String(fm.domain || 'content');
     const brand = fm.brand ? String(fm.brand) : undefined;
     const system = fm.system ? String(fm.system) : undefined;
-    const severity = String(fm.severity || 'warning');
+    // Support both 'enforcement' and legacy 'severity'
+    const enforcement = String(fm.enforcement || fm.severity || 'should');
     const tags = Array.isArray(fm.tags) ? fm.tags.map(String) : [];
 
-    units.push({ filename, title, domain, brand, system, severity, tags, body });
+    units.push({ filename, title, domain, brand, system, enforcement, tags, body });
   }
 
   if (units.length === 0) {
@@ -272,7 +273,7 @@ function writeProposedUnit(
       filePath: relPath,
       title: unit.title,
       domain: unit.domain,
-      severity: unit.severity,
+      enforcement: unit.enforcement,
       tags: unit.tags,
       related: [],
       skipped: true,
@@ -291,7 +292,7 @@ function writeProposedUnit(
   for (const tag of unit.tags) {
     frontmatterLines.push(`  - ${tag}`);
   }
-  frontmatterLines.push(`severity: ${unit.severity}`);
+  frontmatterLines.push(`enforcement: ${unit.enforcement}`);
   frontmatterLines.push('provenance:');
   frontmatterLines.push('  origin: system-proposed');
   frontmatterLines.push('  confidence: 0.85');
@@ -310,7 +311,7 @@ function writeProposedUnit(
     filePath: relPath,
     title: unit.title,
     domain: unit.domain,
-    severity: unit.severity,
+    enforcement: unit.enforcement,
     tags: unit.tags,
     related,
     skipped: false,

@@ -4,7 +4,7 @@ import type {
   UpdateKnowledgeUnit,
   Domain,
 } from '../schema/knowledge-unit.js';
-import type { Severity } from '../severity.js';
+import type { Enforcement } from '../enforcement.js';
 
 /**
  * Filter options for querying knowledge units.
@@ -16,8 +16,8 @@ export interface QueryFilter {
   /** Filter by brand (null for global rules only) */
   brand?: string | null;
 
-  /** Filter by severity */
-  severity?: Severity;
+  /** Filter by enforcement level */
+  enforcement?: Enforcement;
 
   /** Filter by tags (any match) */
   tags?: string[];

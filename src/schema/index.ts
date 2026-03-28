@@ -10,6 +10,6 @@ export type {
 export type {
   Brand,
   CreateBrand,
-  BrandSeverityOverride,
-  CreateBrandSeverityOverride,
+  BrandEnforcementOverride,
+  CreateBrandEnforcementOverride,
 } from './brand-taxonomy.js';
