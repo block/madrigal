@@ -14,92 +14,128 @@ export function UnitDetail() {
     api.getUnit(id).then(setData).catch((e) => setError(e.message));
   }, [id]);
 
-  if (error) return <p className="text-red-400">{error}</p>;
-  if (!data) return <p className="text-zinc-500">Loading…</p>;
+  if (error) return <p className="type-body" style={{ color: 'var(--enforcement-must-text)' }}>{error}</p>;
+  if (!data) return <p className="type-caption">Loading...</p>;
 
   const { unit, brandResolutions } = data;
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <Link to="/explorer" className="text-sm text-violet-400 hover:text-violet-300">&larr; Back to Explorer</Link>
+    <div>
+      {/* Back link */}
+      <Link
+        to="/explorer"
+        className="type-overline inline-block mb-10"
+        style={{ color: 'var(--text-muted)', textDecoration: 'none' }}
+      >
+        &larr; Explorer
+      </Link>
 
-      <div>
-        <div className="flex items-start gap-3">
-          <h2 className="text-xl font-semibold text-white flex-1">{unit.title}</h2>
-          <EnforcementBadge level={unit.enforcement} />
+      {/* Header */}
+      <header className="mb-10">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="type-overline">{unit.domain}</span>
+          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>/</span>
+          <span className="type-overline">{unit.kind}</span>
+          <span className="ml-auto"><EnforcementBadge level={unit.enforcement} /></span>
         </div>
-        <p className="text-sm text-zinc-500 mt-1">{unit.id}</p>
-      </div>
+        <h1 className="type-display mb-2">{unit.title}</h1>
+        <p className="type-mono">{unit.id}</p>
+      </header>
 
       {/* Metadata */}
-      <div className="grid grid-cols-2 gap-3 text-sm border border-zinc-800 rounded-lg p-4">
-        <div>
-          <span className="text-zinc-500">Domain</span>
-          <p className="text-zinc-200">{unit.domain}</p>
-        </div>
-        <div>
-          <span className="text-zinc-500">Kind</span>
-          <p className="text-zinc-200">{unit.kind}</p>
-        </div>
-        {unit.brand && (
-          <div>
-            <span className="text-zinc-500">Brand</span>
-            <p className="text-zinc-200">{unit.brand}</p>
-          </div>
-        )}
-        {unit.system && (
-          <div>
-            <span className="text-zinc-500">System</span>
-            <p className="text-zinc-200">{unit.system}</p>
-          </div>
-        )}
-        <div>
-          <span className="text-zinc-500">Origin</span>
-          <p className="text-zinc-200">{unit.provenance.origin} ({unit.provenance.confidence})</p>
-        </div>
-        <div>
-          <span className="text-zinc-500">Tags</span>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {unit.tags.map((t) => (
-              <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{t}</span>
-            ))}
-          </div>
-        </div>
-      </div>
+      <section className="mb-12">
+        <p className="type-overline mb-5">Metadata</p>
+        <hr className="rule mb-0" />
+        <dl className="grid grid-cols-[100px_1fr] md:grid-cols-[100px_1fr_100px_1fr]">
+          <MetaField label="Domain" value={unit.domain} />
+          <MetaField label="Kind" value={unit.kind} />
+          {unit.brand && <MetaField label="Brand" value={unit.brand} />}
+          {unit.system && <MetaField label="System" value={unit.system} />}
+          <MetaField label="Origin" value={`${unit.provenance.origin} (${unit.provenance.confidence})`} />
+          {unit.tags.length > 0 && (
+            <>
+              <dt
+                className="type-overline py-4"
+                style={{ borderBottom: '1px solid var(--border-subtle)' }}
+              >
+                Tags
+              </dt>
+              <dd
+                className="py-4 flex flex-wrap gap-1.5 items-center"
+                style={{ borderBottom: '1px solid var(--border-subtle)' }}
+              >
+                {unit.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="type-overline px-2 py-0.5"
+                    style={{
+                      borderRadius: 'var(--radius-pill)',
+                      background: 'var(--bg-muted)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.5625rem',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </dd>
+            </>
+          )}
+        </dl>
+      </section>
 
       {/* Body */}
-      <div className="border border-zinc-800 rounded-lg p-5">
+      <section className="mb-12">
+        <p className="type-overline mb-5">Content</p>
+        <hr className="rule mb-6" />
         <Markdown>{unit.body}</Markdown>
-      </div>
+      </section>
 
-      {/* Brand resolution table */}
+      {/* Brand resolution */}
       {Object.keys(brandResolutions).length > 0 && (
-        <div className="border border-zinc-800 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">Brand Resolution</h3>
-          <table className="w-full text-sm">
+        <section>
+          <p className="type-overline mb-5">Brand Resolution</p>
+          <hr className="rule mb-0" />
+          <table className="w-full">
             <thead>
-              <tr className="text-zinc-500 text-left">
-                <th className="pb-2 font-medium">Brand</th>
-                <th className="pb-2 font-medium">Enforcement</th>
-                <th className="pb-2 font-medium">Overridden</th>
+              <tr style={{ borderBottom: '1px solid var(--rule)' }}>
+                <th className="type-overline text-left py-3 font-normal">Brand</th>
+                <th className="type-overline text-left py-3 font-normal">Enforcement</th>
+                <th className="type-overline text-left py-3 font-normal">Status</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(brandResolutions).map(([brand, res]) => (
-                <tr key={brand} className="border-t border-zinc-800/50">
-                  <td className="py-2 text-zinc-300">{brand}</td>
-                  <td className="py-2"><EnforcementBadge level={res.enforcement} /></td>
-                  <td className="py-2">
+                <tr key={brand} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td className="type-body py-3">{brand}</td>
+                  <td className="py-3"><EnforcementBadge level={res.enforcement} /></td>
+                  <td className="py-3">
                     {res.overridden && (
-                      <span className="text-xs text-amber-400">overridden</span>
+                      <span className="type-overline" style={{ color: 'var(--enforcement-should-text)' }}>
+                        Overridden
+                      </span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </section>
       )}
     </div>
+  );
+}
+
+function MetaField({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <dt className="type-overline py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        {label}
+      </dt>
+      <dd className="type-body py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        {value}
+      </dd>
+    </>
   );
 }

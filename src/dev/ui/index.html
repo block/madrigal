@@ -3,9 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Madrigal — Knowledge Explorer</title>
+    <script>
+      // Restore theme preference before first paint
+      if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    </script>
   </head>
-  <body class="bg-zinc-950 text-zinc-100">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

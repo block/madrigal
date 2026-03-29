@@ -47,7 +47,7 @@ export function Explorer() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  if (!stats) return <p className="text-zinc-500">Loading…</p>;
+  if (!stats) return <p className="type-caption">Loading...</p>;
 
   const enforcements = Object.keys(stats.byEnforcement);
   const kinds = Object.keys(stats.byKind);
@@ -55,47 +55,69 @@ export function Explorer() {
   const currentPage = Math.floor(offset / LIMIT) + 1;
 
   return (
-    <div className="space-y-5 max-w-5xl">
-      <h2 className="text-xl font-semibold text-white">Explorer</h2>
+    <div>
+      {/* Page header */}
+      <header className="mb-10">
+        <p className="type-overline mb-3">Browse</p>
+        <h1 className="type-display">Explorer</h1>
+      </header>
 
-      <FilterBar
-        domains={stats.domains}
-        kinds={kinds}
-        enforcements={enforcements}
-        brands={stats.brands}
-        filters={filters}
-        onChange={handleFilterChange}
-      />
+      {/* Filters */}
+      <section className="mb-8">
+        <FilterBar
+          domains={stats.domains}
+          kinds={kinds}
+          enforcements={enforcements}
+          brands={stats.brands}
+          filters={filters}
+          onChange={handleFilterChange}
+        />
+      </section>
 
-      <p className="text-sm text-zinc-500">{total} unit(s) found</p>
+      {/* Results meta */}
+      <div className="flex items-baseline justify-between mb-2">
+        <p className="type-overline">{total} units</p>
+        {totalPages > 1 && (
+          <p className="type-overline" style={{ color: 'var(--text-faint)' }}>
+            Page {currentPage} of {totalPages}
+          </p>
+        )}
+      </div>
+      <hr className="rule mb-0" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Unit list */}
+      <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-10">
         {units.map((u) => (
           <UnitCard key={u.id} unit={u} />
         ))}
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center gap-3 justify-center pt-4">
-          <button
+        <div className="flex items-center gap-4 justify-center pt-8">
+          <PaginationBtn
+            label="Previous"
             onClick={() => setOffset(Math.max(0, offset - LIMIT))}
             disabled={offset === 0}
-            className="px-3 py-1 text-sm rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-zinc-500">
-            Page {currentPage} of {totalPages}
+          />
+          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>
+            {currentPage} / {totalPages}
           </span>
-          <button
+          <PaginationBtn
+            label="Next"
             onClick={() => setOffset(offset + LIMIT)}
             disabled={offset + LIMIT >= total}
-            className="px-3 py-1 text-sm rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30"
-          >
-            Next
-          </button>
+          />
         </div>
       )}
     </div>
+  );
+}
+
+function PaginationBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
+  return (
+    <button onClick={onClick} disabled={disabled} className="btn btn-secondary">
+      {label}
+    </button>
   );
 }

@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react';
 import { api, type StatsResponse, type PipelineResult, type BuildResult } from '../api';
 
+const selectStyle: React.CSSProperties = {
+  background: 'var(--bg)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)',
+  color: 'var(--text-secondary)',
+  fontSize: '0.8125rem',
+  height: 36,
+  padding: '0 14px',
+  paddingRight: 28,
+  appearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+};
+
 export function BuildConsole() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [platform, setPlatform] = useState('');
@@ -33,75 +48,90 @@ export function BuildConsole() {
   };
 
   return (
-    <div className="space-y-5 max-w-5xl">
-      <h2 className="text-xl font-semibold text-white">Build Console</h2>
+    <div>
+      {/* Page header */}
+      <header className="mb-10">
+        <p className="type-overline mb-3">Pipeline</p>
+        <h1 className="type-display">Build</h1>
+      </header>
 
-      <div className="flex gap-3 items-end flex-wrap">
-        {stats && (
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Platform</label>
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-md px-2 py-2 text-sm text-zinc-300"
-            >
-              <option value="">Select platform…</option>
-              {stats.platforms.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-        )}
-        <button
-          onClick={() => runBuild(true)}
-          disabled={loading}
-          className="px-4 py-2 text-sm rounded-md bg-zinc-700 hover:bg-zinc-600 text-white disabled:opacity-50 transition-colors"
-        >
-          Dry Run (All)
-        </button>
-        <button
-          onClick={() => runBuild(false)}
-          disabled={loading}
-          className="px-4 py-2 text-sm rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 transition-colors"
-        >
-          Build All
-        </button>
-        <button
-          onClick={runPreview}
-          disabled={loading || !platform}
-          className="px-4 py-2 text-sm rounded-md bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
-        >
-          Preview Platform
-        </button>
-      </div>
+      {/* Controls */}
+      <section className="mb-10">
+        <div className="flex gap-3 items-end flex-wrap">
+          {stats && (
+            <div>
+              <label className="type-overline block mb-2">Platform</label>
+              <select
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                className="focus:outline-none"
+                style={selectStyle}
+              >
+                <option value="">Select platform...</option>
+                {stats.platforms.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          )}
+          <button onClick={() => runBuild(true)} disabled={loading} className="btn btn-secondary">
+            Dry Run
+          </button>
+          <button onClick={() => runBuild(false)} disabled={loading} className="btn btn-primary">
+            Build All
+          </button>
+          <button onClick={runPreview} disabled={loading || !platform} className="btn btn-secondary">
+            Preview
+          </button>
+        </div>
+      </section>
 
-      {loading && <p className="text-zinc-500 text-sm">Building…</p>}
+      {loading && <p className="type-caption">Building...</p>}
 
+      {/* Full build results */}
       {buildResult && activeTab === 'full' && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4 text-sm">
-            <span className={buildResult.success ? 'text-emerald-400' : 'text-red-400'}>
-              {buildResult.success ? 'Build succeeded' : 'Build failed'}
-            </span>
-            <span className="text-zinc-500">{buildResult.totalUnits} unit(s)</span>
+        <section>
+          <div className="flex items-baseline gap-6 mb-2">
+            <p className="type-overline" style={{
+              color: buildResult.success ? 'var(--text-muted)' : 'var(--enforcement-must-text)'
+            }}>
+              {buildResult.success ? 'Succeeded' : 'Failed'}
+            </p>
+            <p className="type-mono" style={{ color: 'var(--text-faint)' }}>
+              {buildResult.totalUnits} units
+            </p>
           </div>
+          <hr className="rule mb-6" />
 
           {buildResult.configWarnings.length > 0 && (
-            <div className="border border-amber-500/30 bg-amber-500/10 rounded-lg p-3 text-sm text-amber-300">
-              {buildResult.configWarnings.map((w, i) => <p key={i}>{w}</p>)}
+            <div className="mb-6 p-4" style={{
+              borderRadius: 'var(--radius-card)',
+              background: 'var(--enforcement-should-bg)',
+              border: '1px solid var(--enforcement-should-border)',
+            }}>
+              {buildResult.configWarnings.map((w, i) => (
+                <p key={i} className="type-body" style={{ color: 'var(--enforcement-should-text)' }}>{w}</p>
+              ))}
             </div>
           )}
 
-          {buildResult.results.map((r, i) => (
-            <ResultPanel key={i} result={r} />
-          ))}
-        </div>
+          <div className="space-y-3">
+            {buildResult.results.map((r, i) => (
+              <ResultPanel key={i} result={r} />
+            ))}
+          </div>
+        </section>
       )}
 
+      {/* Preview results */}
       {previewResults && activeTab === 'preview' && (
-        <div className="space-y-4">
-          {previewResults.map((r, i) => (
-            <ResultPanel key={i} result={r} />
-          ))}
-        </div>
+        <section>
+          <p className="type-overline mb-2">Preview</p>
+          <hr className="rule mb-6" />
+          <div className="space-y-3">
+            {previewResults.map((r, i) => (
+              <ResultPanel key={i} result={r} />
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
@@ -112,24 +142,40 @@ function ResultPanel({ result }: { result: BuildResult }) {
   const label = result.group ? `${result.platform}/${result.group}` : result.platform;
 
   return (
-    <div className="border border-zinc-800 rounded-lg overflow-hidden">
+    <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-zinc-900/50 transition-colors text-left"
+        className="w-full flex items-center justify-between py-4 text-left"
       >
-        <div>
-          <span className="font-medium text-zinc-200">{label}</span>
-          <span className="text-zinc-500 text-sm ml-3">({result.format}) — {result.unitCount} unit(s)</span>
+        <div className="flex items-baseline gap-4">
+          <span className="type-title" style={{ fontSize: '0.9375rem' }}>{label}</span>
+          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>
+            {result.format}
+          </span>
+          <span className="type-mono" style={{ color: 'var(--text-faint)' }}>
+            {result.unitCount} units
+          </span>
         </div>
-        <span className="text-zinc-500 text-sm">{expanded ? '▼' : '▶'}</span>
+        <span className="type-mono" style={{ color: 'var(--text-faint)' }}>
+          {expanded ? '\u2212' : '+'}
+        </span>
       </button>
       {expanded && result.output && (
-        <pre className="p-4 border-t border-zinc-800 bg-zinc-950 text-xs text-zinc-300 overflow-x-auto max-h-96">
+        <pre
+          className="pb-6 overflow-x-auto max-h-96"
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.6875rem',
+            lineHeight: 1.7,
+            color: 'var(--text-muted)',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
           {result.output}
         </pre>
       )}
       {expanded && !result.output && (
-        <p className="p-4 border-t border-zinc-800 text-sm text-zinc-500">No output (dry run)</p>
+        <p className="type-caption pb-6">No output (dry run)</p>
       )}
     </div>
   );

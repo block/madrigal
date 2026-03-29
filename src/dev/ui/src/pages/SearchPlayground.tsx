@@ -4,6 +4,25 @@ import { api, type StatsResponse, type SearchResponse } from '../api';
 import { EnforcementBadge } from '../components/EnforcementBadge';
 import { ScoreBar } from '../components/ScoreBar';
 
+const inputStyle: React.CSSProperties = {
+  background: 'var(--bg)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)',
+  color: 'var(--text-secondary)',
+  fontSize: '0.8125rem',
+  height: 36,
+  padding: '0 14px',
+};
+
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  paddingRight: 28,
+  appearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+};
+
 export function SearchPlayground() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [query, setQuery] = useState('');
@@ -35,88 +54,95 @@ export function SearchPlayground() {
   };
 
   return (
-    <div className="space-y-5 max-w-4xl">
-      <h2 className="text-xl font-semibold text-white">Search Playground</h2>
+    <div>
+      {/* Page header */}
+      <header className="mb-10">
+        <p className="type-overline mb-3">Semantic</p>
+        <h1 className="type-display">Search</h1>
+      </header>
 
-      <div className="flex gap-3 items-end flex-wrap">
-        <div className="flex-1 min-w-64">
-          <label className="block text-xs text-zinc-500 mb-1">Query</label>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="e.g. accessibility, button labels, error messages…"
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500"
-          />
+      {/* Controls */}
+      <section className="mb-10">
+        <div className="flex gap-3 items-end flex-wrap">
+          <div className="flex-1 min-w-56">
+            <label className="type-overline block mb-2">Query</label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="e.g. accessibility, button labels, error messages..."
+              className="w-full focus:outline-none"
+              style={inputStyle}
+            />
+          </div>
+          {stats && (
+            <>
+              <div>
+                <label className="type-overline block mb-2">Domain</label>
+                <select value={domain} onChange={(e) => setDomain(e.target.value)} className="focus:outline-none" style={selectStyle}>
+                  <option value="">All</option>
+                  {stats.domains.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="type-overline block mb-2">Brand</label>
+                <select value={brand} onChange={(e) => setBrand(e.target.value)} className="focus:outline-none" style={selectStyle}>
+                  <option value="">All</option>
+                  {stats.brands.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+          <div>
+            <label className="type-overline block mb-2">Limit</label>
+            <input
+              type="number"
+              value={limit}
+              onChange={(e) => setLimit(parseInt(e.target.value) || 20)}
+              className="w-16 focus:outline-none"
+              style={inputStyle}
+            />
+          </div>
+          <button onClick={runSearch} disabled={loading || !query.trim()} className="btn btn-primary">
+            {loading ? 'Searching...' : 'Search'}
+          </button>
         </div>
-        {stats && (
-          <>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Domain</label>
-              <select value={domain} onChange={(e) => setDomain(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-md px-2 py-2 text-sm text-zinc-300">
-                <option value="">All</option>
-                {stats.domains.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-500 mb-1">Brand</label>
-              <select value={brand} onChange={(e) => setBrand(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-md px-2 py-2 text-sm text-zinc-300">
-                <option value="">All</option>
-                {stats.brands.map((b) => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-          </>
-        )}
-        <div>
-          <label className="block text-xs text-zinc-500 mb-1">Limit</label>
-          <input
-            type="number"
-            value={limit}
-            onChange={(e) => setLimit(parseInt(e.target.value) || 20)}
-            className="w-20 bg-zinc-900 border border-zinc-700 rounded-md px-2 py-2 text-sm text-zinc-300"
-          />
-        </div>
-        <button
-          onClick={runSearch}
-          disabled={loading || !query.trim()}
-          className="px-4 py-2 text-sm rounded-md bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 transition-colors"
-        >
-          {loading ? 'Searching…' : 'Search'}
-        </button>
-      </div>
+      </section>
 
+      {/* Results */}
       {result && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4 text-sm text-zinc-500">
-            <span>{result.total} result(s)</span>
-            <span>{result.timing.ms}ms</span>
+        <section>
+          <div className="flex items-baseline gap-6 mb-2">
+            <p className="type-overline">{result.total} results</p>
+            <p className="type-mono" style={{ color: 'var(--text-faint)' }}>{result.timing.ms}ms</p>
           </div>
+          <hr className="rule mb-0" />
 
-          <div className="space-y-2">
-            {result.results.map((r) => (
-              <Link
-                key={r.unit.id}
-                to={`/units/${encodeURIComponent(r.unit.id)}`}
-                className="block border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-zinc-100">{r.unit.title}</h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {r.unit.domain} · {r.unit.kind}
-                      {r.unit.brand && <> · {r.unit.brand}</>}
-                    </p>
-                  </div>
-                  <EnforcementBadge level={r.unit.enforcement} />
-                </div>
-                <div className="mt-3">
-                  <ScoreBar score={r.score} />
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+          {result.results.map((r) => (
+            <Link
+              key={r.unit.id}
+              to={`/units/${encodeURIComponent(r.unit.id)}`}
+              className="block py-5"
+              style={{ borderBottom: '1px solid var(--border-subtle)', textDecoration: 'none' }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <span className="type-overline">{r.unit.domain}</span>
+                <span className="type-overline" style={{ color: 'var(--text-faint)' }}>/</span>
+                <span className="type-overline">{r.unit.kind}</span>
+                {r.unit.brand && (
+                  <>
+                    <span className="type-overline" style={{ color: 'var(--text-faint)' }}>/</span>
+                    <span className="type-overline">{r.unit.brand}</span>
+                  </>
+                )}
+                <span className="ml-auto"><EnforcementBadge level={r.unit.enforcement} /></span>
+              </div>
+              <h3 className="type-title mb-2">{r.unit.title}</h3>
+              <ScoreBar score={r.score} />
+            </Link>
+          ))}
+        </section>
       )}
     </div>
   );

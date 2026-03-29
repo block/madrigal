@@ -3,6 +3,21 @@ import { Link } from 'react-router-dom';
 import { api, type StatsResponse, type ResolveResponse } from '../api';
 import { EnforcementBadge } from '../components/EnforcementBadge';
 
+const selectStyle: React.CSSProperties = {
+  background: 'var(--bg)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)',
+  color: 'var(--text-secondary)',
+  fontSize: '0.8125rem',
+  height: 36,
+  padding: '0 14px',
+  paddingRight: 28,
+  appearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+};
+
 export function BrandResolution() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [brand, setBrand] = useState('');
@@ -27,79 +42,104 @@ export function BrandResolution() {
     : [];
 
   return (
-    <div className="space-y-5 max-w-5xl">
-      <h2 className="text-xl font-semibold text-white">Brand Resolution</h2>
+    <div>
+      {/* Page header */}
+      <header className="mb-10">
+        <p className="type-overline mb-3">Resolution</p>
+        <h1 className="type-display">Brands</h1>
+      </header>
 
-      <div className="flex gap-3 items-center">
-        {stats && (
-          <select
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-            className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-300"
-          >
-            <option value="">Select brand…</option>
-            {stats.brands.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        )}
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
-          <input
-            type="checkbox"
-            checked={overriddenOnly}
-            onChange={(e) => setOverriddenOnly(e.target.checked)}
-            className="rounded bg-zinc-800 border-zinc-600"
-          />
-          Overridden only
-        </label>
-      </div>
+      {/* Controls */}
+      <section className="mb-8">
+        <div className="flex gap-3 items-center">
+          {stats && (
+            <select
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              className="focus:outline-none"
+              style={selectStyle}
+            >
+              <option value="">Select brand...</option>
+              {stats.brands.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          )}
+          <label className="flex items-center gap-2 type-caption" style={{ cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={overriddenOnly}
+              onChange={(e) => setOverriddenOnly(e.target.checked)}
+              style={{ accentColor: 'var(--text-muted)' }}
+            />
+            Overridden only
+          </label>
+        </div>
+      </section>
 
-      {loading && <p className="text-zinc-500 text-sm">Loading…</p>}
+      {loading && <p className="type-caption">Loading...</p>}
 
       {data && !loading && (
-        <>
-          <p className="text-sm text-zinc-500">
-            {filteredUnits.length} of {data.total} unit(s)
-            {overriddenOnly && ` (${data.units.filter((u) => u._overridden).length} overridden)`}
-          </p>
-
-          <div className="border border-zinc-800 rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-zinc-500 text-left bg-zinc-900/50">
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Domain</th>
-                  <th className="px-4 py-3 font-medium">Base</th>
-                  <th className="px-4 py-3 font-medium">Resolved</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUnits.map((u) => (
-                  <tr key={u.id} className="border-t border-zinc-800/50 hover:bg-zinc-900/30">
-                    <td className="px-4 py-3">
-                      <Link to={`/units/${encodeURIComponent(u.id)}`} className="text-violet-400 hover:text-violet-300">
-                        {u.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-400">{u.domain}</td>
-                    <td className="px-4 py-3"><EnforcementBadge level={u._baseEnforcement} /></td>
-                    <td className="px-4 py-3"><EnforcementBadge level={u.enforcement} /></td>
-                    <td className="px-4 py-3">
-                      {u._overridden ? (
-                        <span className="text-xs text-amber-400 font-medium">overridden</span>
-                      ) : (
-                        <span className="text-xs text-zinc-600">inherited</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <section>
+          <div className="flex items-baseline gap-6 mb-2">
+            <p className="type-overline">{filteredUnits.length} of {data.total} units</p>
+            {overriddenOnly && (
+              <p className="type-mono" style={{ color: 'var(--text-faint)' }}>
+                {data.units.filter((u) => u._overridden).length} overridden
+              </p>
+            )}
           </div>
-        </>
+          <hr className="rule mb-0" />
+
+          <table className="w-full">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--rule)' }}>
+                <th className="type-overline text-left py-3 font-normal">Title</th>
+                <th className="type-overline text-left py-3 font-normal">Domain</th>
+                <th className="type-overline text-left py-3 font-normal">Base</th>
+                <th className="type-overline text-left py-3 font-normal">Resolved</th>
+                <th className="type-overline text-left py-3 font-normal">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUnits.map((u) => (
+                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td className="py-3">
+                    <Link
+                      to={`/units/${encodeURIComponent(u.id)}`}
+                      className="type-body"
+                      style={{
+                        color: 'var(--text)',
+                        fontWeight: 500,
+                        textDecoration: 'underline',
+                        textUnderlineOffset: '3px',
+                        textDecorationColor: 'var(--border)',
+                      }}
+                    >
+                      {u.title}
+                    </Link>
+                  </td>
+                  <td className="type-caption py-3">{u.domain}</td>
+                  <td className="py-3"><EnforcementBadge level={u._baseEnforcement} /></td>
+                  <td className="py-3"><EnforcementBadge level={u.enforcement} /></td>
+                  <td className="py-3">
+                    {u._overridden ? (
+                      <span className="type-overline" style={{ color: 'var(--enforcement-should-text)' }}>
+                        Overridden
+                      </span>
+                    ) : (
+                      <span className="type-overline" style={{ color: 'var(--text-faint)' }}>
+                        Inherited
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
 
       {!brand && !loading && (
-        <p className="text-zinc-500 text-sm">Select a brand to view resolution.</p>
+        <p className="type-caption mt-6">Select a brand to view resolution.</p>
       )}
     </div>
   );

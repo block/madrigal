@@ -1,1 +1,197 @@
 @import "tailwindcss";
+
+/* ─── Design Tokens ─── */
+:root {
+  /* Grayscale */
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-muted: #f0f0f0;
+  --bg-wash: #f7f7f7;
+  --border: #e0e0e0;
+  --border-subtle: #eeeeee;
+  --rule: #d4d4d4;
+  --text: #0f0f0f;
+  --text-secondary: #444444;
+  --text-muted: #888888;
+  --text-faint: #bbbbbb;
+
+  /* Radii */
+  --radius-pill: 999px;
+  --radius-card: 10px;
+  --radius-sm: 6px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-elevated: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.07);
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+
+  /* Enforcement semantic (muted) */
+  --enforcement-must-bg: #faf0f0;
+  --enforcement-must-text: #8b3a3a;
+  --enforcement-must-border: #e8d0d0;
+  --enforcement-should-bg: #f8f5ea;
+  --enforcement-should-text: #7a6c2e;
+  --enforcement-should-border: #e8e0c0;
+  --enforcement-may-bg: #eef3fa;
+  --enforcement-may-text: #3a5f8b;
+  --enforcement-may-border: #d0dce8;
+}
+
+.dark {
+  --bg: #0a0a0a;
+  --bg-subtle: #111111;
+  --bg-muted: #1a1a1a;
+  --bg-wash: #0e0e0e;
+  --border: #252525;
+  --border-subtle: #1c1c1c;
+  --rule: #333333;
+  --text: #ededed;
+  --text-secondary: #a8a8a8;
+  --text-muted: #636363;
+  --text-faint: #3a3a3a;
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.2);
+  --shadow-elevated: 0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.3);
+
+  --enforcement-must-bg: #1f1414;
+  --enforcement-must-text: #d49393;
+  --enforcement-must-border: #332020;
+  --enforcement-should-bg: #1c1a12;
+  --enforcement-should-text: #c9b86a;
+  --enforcement-should-border: #302c1a;
+  --enforcement-may-bg: #121820;
+  --enforcement-may-text: #7eaad4;
+  --enforcement-may-border: #1a2530;
+}
+
+/* ─── Base ─── */
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ─── Typographic Scale ─── */
+
+/* Display — page titles, hero numbers */
+.type-display {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+/* Title — section headings */
+.type-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+/* Body — default reading text */
+.type-body {
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* Caption — small labels, metadata values */
+.type-caption {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: -0.003em;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* Overline — section kickers, field labels, category markers */
+.type-overline {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Stat — oversized numbers for dashboard metrics */
+.type-stat {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* Mono — code, IDs, paths */
+.type-mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ─── Editorial Rules ─── */
+.rule {
+  border: none;
+  border-top: 1px solid var(--rule);
+}
+
+.rule-subtle {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+}
+
+.btn-secondary {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+/* ─── Smooth transitions (scoped) ─── */
+a, button, input, select {
+  transition: all 150ms ease;
+}

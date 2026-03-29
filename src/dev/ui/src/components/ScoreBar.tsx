@@ -1,14 +1,22 @@
 export function ScoreBar({ score }: { score: number }) {
-  const pct = Math.round(score * 100);
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+    <div className="flex items-center gap-3">
+      <div
+        className="flex-1 h-1 overflow-hidden"
+        style={{ borderRadius: 'var(--radius-pill)', background: 'var(--bg-muted)' }}
+      >
         <div
-          className="h-full rounded-full bg-violet-500 transition-all"
-          style={{ width: `${pct}%` }}
+          className="h-full"
+          style={{
+            width: `${(score * 100).toFixed(1)}%`,
+            borderRadius: 'var(--radius-pill)',
+            background: 'var(--text-faint)',
+          }}
         />
       </div>
-      <span className="text-xs text-zinc-500 tabular-nums w-10 text-right">{score.toFixed(3)}</span>
+      <span className="type-mono" style={{ fontSize: '0.625rem', color: 'var(--text-faint)' }}>
+        {score.toFixed(3)}
+      </span>
     </div>
   );
 }
