@@ -8,10 +8,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "@types/three": "^0.183.1",
+    "fuse.js": "^7.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.0",
     "react-router-dom": "^7.1.0",
-    "react-markdown": "^9.0.0"
+    "three": "^0.183.2",
+    "troika-three-text": "^0.52.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

@@ -14,6 +14,8 @@ import { resolveForBrand } from '../resolver.js';
 import { build, buildPlatformByName } from '../pipeline.js';
 import { ENFORCEMENT_ORDER } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
+import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv } from './topology/index.js';
+import type { TopologyData, EmbeddingProvider } from './topology/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const uiRoot = join(__dirname, 'ui');
@@ -216,6 +218,86 @@ export function createApp(baseDir: string): Hono {
       units: resolvedWithOverrides,
       total: resolvedWithOverrides.length,
     });
+  });
+
+  // --- Topology endpoints ---
+  let cachedTopology: TopologyData | null = null;
+
+  app.get('/api/topology', (c) => {
+    if (!cachedTopology) {
+      return c.json({ error: 'Topology not generated yet. POST /api/topology/generate to create it.' }, 404);
+    }
+    return c.json(cachedTopology);
+  });
+
+  app.get('/api/topology/status', (c) => {
+    const { units } = getState();
+    return c.json({
+      generated: !!cachedTopology,
+      unitCount: units.length,
+      generatedAt: cachedTopology?.metadata.generatedAt ?? null,
+      embeddingModel: cachedTopology?.metadata.embeddingModel ?? null,
+      nodeCount: cachedTopology?.metadata.nodeCount ?? 0,
+      edgeCount: cachedTopology?.metadata.edgeCount ?? 0,
+    });
+  });
+
+  app.post('/api/topology/generate', async (c) => {
+    const { units } = getState();
+    const body = await c.req.json<{
+      provider?: string;
+      apiKey?: string;
+      model?: string;
+      baseUrl?: string;
+      clusters?: number;
+      neighbors?: number;
+      skipLlm?: boolean;
+    }>().catch(() => ({}));
+
+    let embeddingProvider: EmbeddingProvider | undefined;
+
+    // Priority: request body > env vars
+    const provider = (body as any)?.provider ?? process.env.MADRIGAL_EMBEDDING_PROVIDER;
+    const apiKey = (body as any)?.apiKey ?? process.env.MADRIGAL_API_KEY;
+
+    if (provider && apiKey) {
+      switch (provider) {
+        case 'openai':
+          embeddingProvider = createOpenAIProvider({
+            apiKey,
+            model: (body as any)?.model ?? process.env.MADRIGAL_EMBEDDING_MODEL,
+            baseUrl: (body as any)?.baseUrl ?? process.env.MADRIGAL_EMBEDDING_BASE_URL,
+          });
+          break;
+        case 'voyage':
+          embeddingProvider = createVoyageProvider({
+            apiKey,
+            model: (body as any)?.model ?? process.env.MADRIGAL_EMBEDDING_MODEL,
+          });
+          break;
+      }
+    } else {
+      embeddingProvider = createProviderFromEnv() ?? undefined;
+    }
+
+    try {
+      cachedTopology = await generateTopology(units, {
+        clusters: (body as any)?.clusters,
+        neighbors: (body as any)?.neighbors,
+        skipLlm: (body as any)?.skipLlm ?? true,
+        embeddingProvider,
+      });
+
+      return c.json({
+        success: true,
+        nodes: cachedTopology.metadata.nodeCount,
+        edges: cachedTopology.metadata.edgeCount,
+        clusters: cachedTopology.metadata.clusterCount,
+        model: cachedTopology.metadata.embeddingModel,
+      });
+    } catch (err) {
+      return c.json({ error: String(err) }, 500);
+    }
   });
 
   // --- POST /api/reload ---

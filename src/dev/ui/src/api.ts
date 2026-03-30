@@ -112,4 +112,8 @@ export const api = {
   },
   resolve: (brand: string) => fetchJson<ResolveResponse>(`/resolve?brand=${encodeURIComponent(brand)}`),
   reload: () => fetchJson<{ success: boolean; units: number; errors: number; warnings: number }>('/reload', { method: 'POST' }),
+  topologyGet: () => fetchJson<any>('/topology'),
+  topologyStatus: () => fetchJson<{ generated: boolean; unitCount: number; generatedAt: string | null; embeddingModel: string | null }>('/topology/status'),
+  topologyGenerate: (body: { provider?: string; apiKey?: string; model?: string; clusters?: number; neighbors?: number; skipLlm?: boolean }) =>
+    fetchJson<{ success: boolean; nodes: number; edges: number; clusters: number; model: string }>('/topology/generate', { method: 'POST', body: JSON.stringify(body) }),
 };
