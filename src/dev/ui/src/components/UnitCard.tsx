@@ -7,21 +7,17 @@ export function UnitCard({ unit }: { unit: KnowledgeUnit }) {
   return (
     <Link
       to={`/units/${encodeURIComponent(unit.id)}`}
-      className="block group"
-      style={{ textDecoration: 'none' }}
+      className="block group no-underline"
     >
-      <article
-        className="py-5"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
+      <article className="py-5 border-b border-border-card">
         {/* Overline: domain / kind */}
         <div className="flex items-center gap-3 mb-2">
           <span className="type-overline">{unit.domain}</span>
-          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>/</span>
+          <span className="type-overline text-text-faint">/</span>
           <span className="type-overline">{unit.kind}</span>
           {unit.brand && (
             <>
-              <span className="type-overline" style={{ color: 'var(--text-faint)' }}>/</span>
+              <span className="type-overline text-text-faint">/</span>
               <span className="type-overline">{unit.brand}</span>
             </>
           )}
@@ -29,9 +25,7 @@ export function UnitCard({ unit }: { unit: KnowledgeUnit }) {
         </div>
 
         {/* Title */}
-        <h3 className="type-title" style={{ marginBottom: 6 }}>
-          {unit.title}
-        </h3>
+        <h3 className="type-title mb-1.5">{unit.title}</h3>
 
         {/* Tags */}
         {unit.tags.length > 0 && (
@@ -39,20 +33,13 @@ export function UnitCard({ unit }: { unit: KnowledgeUnit }) {
             {unit.tags.slice(0, 5).map((t) => (
               <span
                 key={t}
-                className="type-overline px-2 py-0.5"
-                style={{
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--bg-muted)',
-                  color: 'var(--text-faint)',
-                  letterSpacing: '0.05em',
-                  fontSize: '0.5625rem',
-                }}
+                className="type-overline px-2 py-0.5 rounded-pill bg-background-muted text-text-faint text-[0.5625rem] tracking-[0.05em]"
               >
                 {t}
               </span>
             ))}
             {unit.tags.length > 5 && (
-              <span className="type-overline" style={{ color: 'var(--text-faint)', padding: '2px 0' }}>
+              <span className="type-overline text-text-faint py-0.5">
                 +{unit.tags.length - 5}
               </span>
             )}

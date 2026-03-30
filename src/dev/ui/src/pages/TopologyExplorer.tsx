@@ -8,6 +8,15 @@ import Scene from '../topology/Scene';
 import NodeDetail from '../topology/NodeDetail';
 import SearchOverlay from '../topology/SearchOverlay';
 import { api } from '../api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const VIEW_KEYS: Record<string, TopologyView> = { '1': 'centralized', '2': 'decentralized', '3': 'distributed' };
 const VIEW_LABELS: Record<TopologyView, string> = { centralized: '1 centralized', decentralized: '2 decentralized', distributed: '3 distributed' };
@@ -46,7 +55,6 @@ export function TopologyExplorer() {
 
   const pathResult = useShortestPath(data?.edges ?? [], pathStart, pathEnd);
 
-  // Load topology status & data on mount
   useEffect(() => {
     (async () => {
       try {
@@ -132,80 +140,71 @@ export function TopologyExplorer() {
   }, [pathMode, pathStart, pathEnd, pathResult]);
 
   if (loading) {
-    return <div style={{ padding: 40, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Loading topology status...</div>;
+    return <div className="p-10 text-text-muted font-mono">Loading topology status...</div>;
   }
 
   // Not generated yet — show generation UI
   if (!data) {
     return (
-      <div style={{ maxWidth: 500, fontFamily: 'var(--font-mono)' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 16, color: 'var(--text)' }}>Topology Explorer</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 24 }}>
+      <div className="max-w-[500px]">
+        <header className="mb-12">
+          <p className="type-overline mb-4">3D Graph</p>
+          <h1 className="type-display">Topology</h1>
+        </header>
+
+        <p className="type-body mb-6">
           Generate a 3D semantic topology of your knowledge units. This computes embeddings,
           clusters units into themes, and builds a navigable graph of relationships.
         </p>
 
         {status && (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, padding: '8px 12px', background: 'var(--bg-muted)', borderRadius: 6 }}>
+          <div className="type-mono text-text-muted mb-4 p-3 bg-background-muted rounded-card-sm">
             {status.unitCount} units available
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+        <div className="flex flex-col gap-3 mb-5">
           <div>
-            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
+            <label className="type-overline block mb-2">
               Embedding provider (optional — uses TF-IDF fallback if empty)
             </label>
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              style={{
-                width: '100%', padding: '6px 8px', fontSize: 13,
-                background: 'var(--bg)', border: '1px solid var(--border)',
-                borderRadius: 6, color: 'var(--text)',
-              }}>
-              <option value="">None (TF-IDF pseudo-embeddings)</option>
-              <option value="openai">OpenAI</option>
-              <option value="voyage">Voyage AI</option>
-            </select>
+            <Select value={provider || undefined} onValueChange={(v) => setProvider(v === '__none__' ? '' : v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="None (TF-IDF pseudo-embeddings)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None (TF-IDF pseudo-embeddings)</SelectItem>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="voyage">Voyage AI</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {provider && (
             <div>
-              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>API Key</label>
-              <input
+              <label className="type-overline block mb-2">API Key</label>
+              <Input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-..."
-                style={{
-                  width: '100%', padding: '6px 8px', fontSize: 13,
-                  background: 'var(--bg)', border: '1px solid var(--border)',
-                  borderRadius: 6, color: 'var(--text)', boxSizing: 'border-box',
-                }}
               />
-              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 4 }}>
+              <div className="type-mono text-[10px] text-text-faint mt-1">
                 Key is sent to the server for embedding generation only, not stored.
               </div>
             </div>
           )}
         </div>
 
-        <button
+        <Button
           onClick={handleGenerate}
           disabled={generating || (!!provider && !apiKey)}
-          style={{
-            padding: '8px 20px', fontSize: 13, fontWeight: 600,
-            background: generating ? 'var(--bg-muted)' : 'var(--text)',
-            color: generating ? 'var(--text-muted)' : 'var(--bg)',
-            border: 'none', borderRadius: 6, cursor: generating ? 'wait' : 'pointer',
-            fontFamily: 'var(--font-mono)',
-          }}>
+        >
           {generating ? 'Generating topology...' : 'Generate Topology'}
-        </button>
+        </Button>
 
         {error && (
-          <div style={{ marginTop: 16, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>
+          <div className="mt-4 p-3 bg-[var(--enforcement-must-bg)] border border-[var(--enforcement-must-border)] rounded-card-sm type-mono text-[12px] text-[var(--enforcement-must-text)]">
             {error}
           </div>
         )}
@@ -240,37 +239,26 @@ export function TopologyExplorer() {
       )}
 
       {/* View indicator */}
-      <div style={{
-        position: 'absolute', bottom: 16, left: 16, zIndex: 10,
-        fontFamily: 'var(--font-mono, monospace)', fontSize: 11,
-        color: 'rgba(255,255,255,0.3)', lineHeight: 1.6, userSelect: 'none',
-      }}>
+      <div className="absolute bottom-4 left-4 z-10 font-mono text-[11px] leading-relaxed select-none">
         {(['centralized', 'decentralized', 'distributed'] as TopologyView[]).map((v) => (
           <div key={v} style={{ color: view === v ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)' }}>
             {VIEW_LABELS[v]}
           </div>
         ))}
-        <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.15)', maxWidth: 200 }}>
+        <div className="mt-2 text-[9px] max-w-[200px]" style={{ color: 'rgba(255,255,255,0.15)' }}>
           {VIEW_DESCRIPTIONS[view]}
         </div>
       </div>
 
       {/* Path status */}
       {pathStatus && (
-        <div style={{
-          position: 'absolute', top: 16, left: 16, zIndex: 10,
-          fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: '#2dd4bf',
-        }}>
+        <div className="absolute top-4 left-4 z-10 font-mono text-[11px]" style={{ color: '#2dd4bf' }}>
           {pathStatus} <span style={{ color: 'rgba(255,255,255,0.3)' }}>[p to exit]</span>
         </div>
       )}
 
       {/* Stats + hints */}
-      <div style={{
-        position: 'absolute', bottom: 16, right: 16, zIndex: 10,
-        fontFamily: 'var(--font-mono, monospace)', fontSize: 11,
-        color: 'rgba(255,255,255,0.15)', textAlign: 'right', lineHeight: 1.6,
-      }}>
+      <div className="absolute bottom-4 right-4 z-10 font-mono text-[11px] text-right leading-relaxed" style={{ color: 'rgba(255,255,255,0.15)' }}>
         <div>{data.metadata.nodeCount} units / {data.metadata.edgeCount} connections</div>
         <div>{data.metadata.embeddingModel}</div>
         <div>/ search / p path</div>
@@ -279,12 +267,12 @@ export function TopologyExplorer() {
       {/* Back button */}
       <button
         onClick={() => navigate('/')}
+        className="absolute top-4 z-10 py-1 px-2.5 text-[11px] font-mono rounded-sm cursor-pointer"
         style={{
-          position: 'absolute', top: 16, right: selectedId ? 310 : 16, zIndex: 10,
-          padding: '4px 10px', fontSize: 11,
-          fontFamily: 'var(--font-mono, monospace)',
-          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-          color: 'rgba(255,255,255,0.5)', cursor: 'pointer', borderRadius: 4,
+          right: selectedId ? 310 : 16,
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: 'rgba(255,255,255,0.5)',
         }}>
         back to dashboard
       </button>

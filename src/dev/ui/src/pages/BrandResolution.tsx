@@ -2,21 +2,22 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type StatsResponse, type ResolveResponse } from '../api';
 import { EnforcementBadge } from '../components/EnforcementBadge';
-
-const selectStyle: React.CSSProperties = {
-  background: 'var(--bg)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-pill)',
-  color: 'var(--text-secondary)',
-  fontSize: '0.8125rem',
-  height: 36,
-  padding: '0 14px',
-  paddingRight: 28,
-  appearance: 'none' as const,
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'right 12px center',
-};
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
 
 export function BrandResolution() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -44,31 +45,31 @@ export function BrandResolution() {
   return (
     <div>
       {/* Page header */}
-      <header className="mb-10">
-        <p className="type-overline mb-3">Resolution</p>
+      <header className="mb-12">
+        <p className="type-overline mb-4">Resolution</p>
         <h1 className="type-display">Brands</h1>
       </header>
 
       {/* Controls */}
-      <section className="mb-8">
+      <section className="mb-10">
         <div className="flex gap-3 items-center">
           {stats && (
-            <select
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              className="focus:outline-none"
-              style={selectStyle}
-            >
-              <option value="">Select brand...</option>
-              {stats.brands.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
+            <Select value={brand || undefined} onValueChange={(v) => setBrand(v === '__none__' ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select brand..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select brand...</SelectItem>
+                {stats.brands.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              </SelectContent>
+            </Select>
           )}
-          <label className="flex items-center gap-2 type-caption" style={{ cursor: 'pointer' }}>
+          <label className="flex items-center gap-2 type-caption cursor-pointer">
             <input
               type="checkbox"
               checked={overriddenOnly}
               onChange={(e) => setOverriddenOnly(e.target.checked)}
-              style={{ accentColor: 'var(--text-muted)' }}
+              className="accent-text-muted"
             />
             Overridden only
           </label>
@@ -82,59 +83,48 @@ export function BrandResolution() {
           <div className="flex items-baseline gap-6 mb-2">
             <p className="type-overline">{filteredUnits.length} of {data.total} units</p>
             {overriddenOnly && (
-              <p className="type-mono" style={{ color: 'var(--text-faint)' }}>
+              <p className="type-mono text-text-faint">
                 {data.units.filter((u) => u._overridden).length} overridden
               </p>
             )}
           </div>
-          <hr className="rule mb-0" />
+          <Separator className="mb-0" />
 
-          <table className="w-full">
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--rule)' }}>
-                <th className="type-overline text-left py-3 font-normal">Title</th>
-                <th className="type-overline text-left py-3 font-normal">Domain</th>
-                <th className="type-overline text-left py-3 font-normal">Base</th>
-                <th className="type-overline text-left py-3 font-normal">Resolved</th>
-                <th className="type-overline text-left py-3 font-normal">Status</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="type-overline font-normal">Title</TableHead>
+                <TableHead className="type-overline font-normal">Domain</TableHead>
+                <TableHead className="type-overline font-normal">Base</TableHead>
+                <TableHead className="type-overline font-normal">Resolved</TableHead>
+                <TableHead className="type-overline font-normal">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredUnits.map((u) => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td className="py-3">
+                <TableRow key={u.id}>
+                  <TableCell>
                     <Link
                       to={`/units/${encodeURIComponent(u.id)}`}
-                      className="type-body"
-                      style={{
-                        color: 'var(--text)',
-                        fontWeight: 500,
-                        textDecoration: 'underline',
-                        textUnderlineOffset: '3px',
-                        textDecorationColor: 'var(--border)',
-                      }}
+                      className="type-body text-text-default font-medium underline underline-offset-[3px] decoration-border-default"
                     >
                       {u.title}
                     </Link>
-                  </td>
-                  <td className="type-caption py-3">{u.domain}</td>
-                  <td className="py-3"><EnforcementBadge level={u._baseEnforcement} /></td>
-                  <td className="py-3"><EnforcementBadge level={u.enforcement} /></td>
-                  <td className="py-3">
+                  </TableCell>
+                  <TableCell className="type-caption">{u.domain}</TableCell>
+                  <TableCell><EnforcementBadge level={u._baseEnforcement} /></TableCell>
+                  <TableCell><EnforcementBadge level={u.enforcement} /></TableCell>
+                  <TableCell>
                     {u._overridden ? (
-                      <span className="type-overline" style={{ color: 'var(--enforcement-should-text)' }}>
-                        Overridden
-                      </span>
+                      <span className="type-overline text-[var(--enforcement-should-text)]">Overridden</span>
                     ) : (
-                      <span className="type-overline" style={{ color: 'var(--text-faint)' }}>
-                        Inherited
-                      </span>
+                      <span className="type-overline text-text-faint">Inherited</span>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </section>
       )}
 

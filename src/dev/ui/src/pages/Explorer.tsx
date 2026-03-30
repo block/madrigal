@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { api, type StatsResponse, type KnowledgeUnit } from '../api';
 import { UnitCard } from '../components/UnitCard';
 import { FilterBar } from '../components/FilterBar';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 const LIMIT = 30;
 
@@ -57,13 +59,13 @@ export function Explorer() {
   return (
     <div>
       {/* Page header */}
-      <header className="mb-10">
-        <p className="type-overline mb-3">Browse</p>
+      <header className="mb-12">
+        <p className="type-overline mb-4">Browse</p>
         <h1 className="type-display">Explorer</h1>
       </header>
 
       {/* Filters */}
-      <section className="mb-8">
+      <section className="mb-10">
         <FilterBar
           domains={stats.domains}
           kinds={kinds}
@@ -78,12 +80,12 @@ export function Explorer() {
       <div className="flex items-baseline justify-between mb-2">
         <p className="type-overline">{total} units</p>
         {totalPages > 1 && (
-          <p className="type-overline" style={{ color: 'var(--text-faint)' }}>
+          <p className="type-overline text-text-faint">
             Page {currentPage} of {totalPages}
           </p>
         )}
       </div>
-      <hr className="rule mb-0" />
+      <Separator className="mb-0" />
 
       {/* Unit list */}
       <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-10">
@@ -94,30 +96,26 @@ export function Explorer() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center gap-4 justify-center pt-8">
-          <PaginationBtn
-            label="Previous"
+        <div className="flex items-center gap-4 justify-center pt-10">
+          <Button
+            variant="outline"
             onClick={() => setOffset(Math.max(0, offset - LIMIT))}
             disabled={offset === 0}
-          />
-          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>
+          >
+            Previous
+          </Button>
+          <span className="type-overline text-text-faint">
             {currentPage} / {totalPages}
           </span>
-          <PaginationBtn
-            label="Next"
+          <Button
+            variant="outline"
             onClick={() => setOffset(offset + LIMIT)}
             disabled={offset + LIMIT >= total}
-          />
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>
-  );
-}
-
-function PaginationBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
-  return (
-    <button onClick={onClick} disabled={disabled} className="btn btn-secondary">
-      {label}
-    </button>
   );
 }

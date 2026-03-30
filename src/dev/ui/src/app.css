@@ -1,34 +1,100 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* ─── Design Tokens ─── */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* reset */
+  --color-*: initial;
+
+  /* constants */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* gray — pure monochromatic scale */
+  --color-gray-50: #f5f5f5;
+  --color-gray-100: #f0f0f0;
+  --color-gray-200: #e8e8e8;
+  --color-gray-300: #e5e5e5;
+  --color-gray-400: #cccccc;
+  --color-gray-500: #999999;
+  --color-gray-600: #666666;
+  --color-gray-700: #333333;
+  --color-gray-800: #232323;
+  --color-gray-900: #1a1a1a;
+
+  /* utility */
+  --color-red-100: #ff6b6b;
+  --color-red-200: #f94b4b;
+
+  --color-blue-100: #7cacff;
+  --color-blue-200: #5c98f9;
+
+  --color-green-100: #a3d795;
+  --color-green-200: #91cb80;
+
+  --color-yellow-100: #ffd966;
+  --color-yellow-200: #fbcd44;
+}
+
 :root {
-  /* Grayscale */
-  --bg: #ffffff;
-  --bg-subtle: #fafafa;
-  --bg-muted: #f0f0f0;
-  --bg-wash: #f7f7f7;
-  --border: #e0e0e0;
-  --border-subtle: #eeeeee;
-  --rule: #d4d4d4;
-  --text: #0f0f0f;
-  --text-secondary: #444444;
-  --text-muted: #888888;
-  --text-faint: #bbbbbb;
+  /* shape */
+  --radius: 0.5rem;
 
-  /* Radii */
-  --radius-pill: 999px;
-  --radius-card: 10px;
-  --radius-sm: 6px;
+  /* theming accents */
+  --background-accent: var(--color-gray-900);
+  --border-accent: var(--color-gray-900);
+  --text-accent: var(--color-gray-900);
 
-  /* Shadows */
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.04);
-  --shadow-elevated: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.07);
+  /* Semantic backgrounds */
+  --background-default: var(--color-white);
+  --background-alt: var(--color-gray-50);
+  --background-medium: var(--color-gray-400);
+  --background-muted: var(--color-gray-100);
+  --background-inverse: var(--color-black);
+  --background-danger: var(--color-red-200);
+  --background-success: var(--color-green-200);
+  --background-info: var(--color-blue-200);
+  --background-warning: var(--color-yellow-200);
 
-  /* Typography */
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  /* Semantic borders */
+  --border-default: var(--color-gray-200);
+  --border-input: var(--color-gray-300);
+  --border-input-hover: var(--color-gray-400);
+  --border-strong: var(--color-gray-900);
+  --border-card: var(--color-gray-200);
+  --border-inverse: var(--color-black);
+  --border-danger: var(--color-red-200);
+  --border-success: var(--color-green-200);
+  --border-warning: var(--color-yellow-200);
+  --border-info: var(--color-blue-200);
 
-  /* Enforcement semantic (muted) */
+  /* Semantic text */
+  --text-default: var(--color-gray-900);
+  --text-muted: var(--color-gray-500);
+  --text-alt: var(--color-gray-600);
+  --text-inverse: var(--color-white);
+  --text-faint: var(--color-gray-400);
+  --text-danger: var(--color-red-200);
+  --text-success: var(--color-green-200);
+  --text-warning: var(--color-yellow-200);
+  --text-info: var(--color-blue-200);
+
+  --ring: var(--border-strong);
+
+  /* Alpha variants */
+  --dark-10: rgba(26, 26, 26, 0.1);
+  --dark-40: rgba(26, 26, 26, 0.4);
+  --dark-04: rgba(26, 26, 26, 0.04);
+
+  /* Shadows — 4-tier hierarchy */
+  --shadow-mini: 0 2px 8px rgba(76, 76, 76, 0.15);
+  --shadow-card: 0 2px 8px rgba(76, 76, 76, 0.15);
+  --shadow-elevated: 0 3px 12px rgba(76, 76, 76, 0.22);
+  --shadow-popover: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.2);
+
+  /* Enforcement semantic */
   --enforcement-must-bg: #faf0f0;
   --enforcement-must-text: #8b3a3a;
   --enforcement-must-border: #e8d0d0;
@@ -38,24 +104,90 @@
   --enforcement-may-bg: #eef3fa;
   --enforcement-may-text: #3a5f8b;
   --enforcement-may-border: #d0dce8;
+
+  /* Heading typography — magazine scale */
+  --heading-display-size: clamp(2.5rem, 5vw, 4rem);
+  --heading-display-line-height: 0.92;
+  --heading-display-letter-spacing: -0.04em;
+  --heading-display-weight: 700;
+
+  --heading-section-size: clamp(1.75rem, 3vw, 2.5rem);
+  --heading-section-line-height: 0.95;
+  --heading-section-letter-spacing: -0.035em;
+  --heading-section-weight: 700;
+
+  --heading-card-size: clamp(1.125rem, 1.5vw, 1.375rem);
+  --heading-card-line-height: 1.1;
+  --heading-card-letter-spacing: -0.02em;
+  --heading-card-weight: 600;
+
+  /* Label — kicker pattern */
+  --label-font-size: 0.625rem;
+  --label-letter-spacing: 0.1em;
+  --label-font-weight: 500;
+  --label-line-height: 1.2;
+
+  /* Timing */
+  --ease-spring: cubic-bezier(0.33, 1, 0.68, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.2s;
 }
 
 .dark {
-  --bg: #0a0a0a;
-  --bg-subtle: #111111;
-  --bg-muted: #1a1a1a;
-  --bg-wash: #0e0e0e;
-  --border: #252525;
-  --border-subtle: #1c1c1c;
-  --rule: #333333;
-  --text: #ededed;
-  --text-secondary: #a8a8a8;
-  --text-muted: #636363;
-  --text-faint: #3a3a3a;
+  /* theming accents */
+  --background-accent: var(--color-white);
+  --border-accent: var(--color-white);
+  --text-accent: var(--color-white);
 
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.2);
-  --shadow-elevated: 0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.3);
+  /* semantic backgrounds */
+  --background-default: var(--color-black);
+  --background-alt: var(--color-gray-800);
+  --background-medium: var(--color-gray-700);
+  --background-muted: var(--color-gray-800);
+  --background-inverse: var(--color-white);
+  --background-danger: var(--color-red-100);
+  --background-success: var(--color-green-100);
+  --background-info: var(--color-blue-100);
+  --background-warning: var(--color-yellow-100);
 
+  /* semantic borders */
+  --border-default: var(--color-gray-700);
+  --border-input: var(--color-gray-700);
+  --border-input-hover: var(--color-gray-600);
+  --border-strong: var(--color-white);
+  --border-card: var(--color-gray-700);
+  --border-inverse: var(--color-white);
+  --border-danger: var(--color-red-200);
+  --border-success: var(--color-green-200);
+  --border-warning: var(--color-yellow-200);
+  --border-info: var(--color-blue-200);
+
+  /* semantic text */
+  --text-default: var(--color-white);
+  --text-muted: var(--color-gray-500);
+  --text-alt: var(--color-gray-500);
+  --text-inverse: var(--color-black);
+  --text-faint: var(--color-gray-600);
+  --text-danger: var(--color-red-100);
+  --text-success: var(--color-green-100);
+  --text-warning: var(--color-yellow-100);
+  --text-info: var(--color-blue-100);
+
+  --ring: var(--border-strong);
+
+  /* Alpha variants */
+  --dark-10: rgba(242, 242, 242, 0.1);
+  --dark-40: rgba(242, 242, 242, 0.4);
+  --dark-04: rgba(242, 242, 242, 0.04);
+
+  /* Shadows — doubled intensity for dark */
+  --shadow-mini: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 3px 12px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
+
+  /* Enforcement */
   --enforcement-must-bg: #1f1414;
   --enforcement-must-text: #d49393;
   --enforcement-must-border: #332020;
@@ -67,131 +199,306 @@
   --enforcement-may-border: #1a2530;
 }
 
-/* ─── Base ─── */
-body {
-  font-family: var(--font-sans);
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  background: var(--bg);
-  color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-size: 14px;
-  line-height: 1.6;
+@theme inline {
+  /* semantic backgrounds */
+  --color-background-default: var(--background-default);
+  --color-background-alt: var(--background-alt);
+  --color-background-medium: var(--background-medium);
+  --color-background-inverse: var(--background-inverse);
+  --color-background-muted: var(--background-muted);
+  --color-background-danger: var(--background-danger);
+  --color-background-success: var(--background-success);
+  --color-background-info: var(--background-info);
+  --color-background-warning: var(--background-warning);
+
+  --color-background-accent: var(--background-accent);
+  --color-border-accent: var(--border-accent);
+  --color-text-accent: var(--text-accent);
+
+  /* semantic borders */
+  --color-border-default: var(--border-default);
+  --color-border-input: var(--border-input);
+  --color-border-input-hover: var(--border-input-hover);
+  --color-border-strong: var(--border-strong);
+  --color-border-card: var(--border-card);
+  --color-border-inverse: var(--border-inverse);
+  --color-border-danger: var(--border-danger);
+  --color-border-success: var(--border-success);
+  --color-border-warning: var(--border-warning);
+  --color-border-info: var(--border-info);
+
+  /* semantic text */
+  --color-text-default: var(--text-default);
+  --color-text-muted: var(--text-muted);
+  --color-text-alt: var(--text-alt);
+  --color-text-faint: var(--text-faint);
+  --color-text-inverse: var(--text-inverse);
+  --color-text-danger: var(--text-danger);
+  --color-text-success: var(--text-success);
+  --color-text-warning: var(--text-warning);
+  --color-text-info: var(--text-info);
+
+  /* alpha variants */
+  --color-dark-10: var(--dark-10);
+  --color-dark-40: var(--dark-40);
+  --color-dark-04: var(--dark-04);
+
+  /* fonts */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+
+  /* shape — pill-first radius system */
+  --radius-pill: 999px;
+  --radius-button: 999px;
+  --radius-input: 999px;
+  --radius-card: 12px;
+  --radius-card-lg: 16px;
+  --radius-card-sm: 10px;
+  --radius-dropdown: 10px;
+  --radius-modal: 16px;
+
+  /* backward-compat aliases for shadcn */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-ring: var(--ring);
+
+  /* shadows */
+  --shadow-mini: var(--shadow-mini);
+  --shadow-card: var(--shadow-card);
+  --shadow-elevated: var(--shadow-elevated);
+  --shadow-popover: var(--shadow-popover);
+  --shadow-modal: var(--shadow-modal);
+
+  /* spacing — button/input heights */
+  --spacing-input: 3.25rem;
+  --spacing-input-sm: 2.75rem;
+  --spacing-button: 2.75rem;
+  --spacing-button-sm: 2rem;
+
+  --text-xxs: 10px;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-scale-in: scale-in 0.2s ease;
+  --animate-scale-out: scale-out 0.15s ease;
+  --animate-fade-in: fade-in 0.2s ease;
+  --animate-fade-out: fade-out 0.15s ease;
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: rotateX(-10deg) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: rotateX(0deg) scale(1);
+    }
+  }
+
+  @keyframes scale-out {
+    from {
+      opacity: 1;
+      transform: rotateX(0deg) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: rotateX(-10deg) scale(0.95);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--bits-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--bits-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
 }
 
-/* ─── Typographic Scale ─── */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border-card, currentColor);
+  }
 
-/* Display — page titles, hero numbers */
-.type-display {
-  font-size: 2.25rem;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-  color: var(--text);
+  * {
+    @apply border-border-card;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-variation-settings: normal;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background-default text-text-default;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  ::selection {
+    background: #1a1a1a;
+    color: #ffffff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #999;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #444;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
 }
 
-/* Title — section headings */
-.type-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.25;
-  color: var(--text);
-}
+@layer components {
+  *:not(body):not(.focus-override) {
+    outline: none !important;
+    &:focus-visible {
+      @apply focus-visible:ring-text-default focus-visible:ring-offset-background-default focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-hidden;
+    }
+  }
 
-/* Body — default reading text */
-.type-body {
-  font-size: 0.875rem;
-  font-weight: 400;
-  letter-spacing: -0.006em;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
+  /* ─── Typographic Scale ─── */
 
-/* Caption — small labels, metadata values */
-.type-caption {
-  font-size: 0.8125rem;
-  font-weight: 400;
-  letter-spacing: -0.003em;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
+  /* Display — page titles, hero-scale */
+  .type-display {
+    font-size: var(--heading-display-size);
+    font-weight: var(--heading-display-weight);
+    letter-spacing: var(--heading-display-letter-spacing);
+    line-height: var(--heading-display-line-height);
+    color: var(--text-default);
+  }
 
-/* Overline — section kickers, field labels, category markers */
-.type-overline {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
+  /* Section — major divisions within a page */
+  .type-section {
+    font-size: var(--heading-section-size);
+    font-weight: var(--heading-section-weight);
+    letter-spacing: var(--heading-section-letter-spacing);
+    line-height: var(--heading-section-line-height);
+    color: var(--text-default);
+  }
 
-/* Stat — oversized numbers for dashboard metrics */
-.type-stat {
-  font-size: 3rem;
-  font-weight: 700;
-  letter-spacing: -0.05em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
+  /* Title — card headings, subsections */
+  .type-title {
+    font-size: var(--heading-card-size);
+    font-weight: var(--heading-card-weight);
+    letter-spacing: var(--heading-card-letter-spacing);
+    line-height: var(--heading-card-line-height);
+    color: var(--text-default);
+  }
 
-/* Mono — code, IDs, paths */
-.type-mono {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 1.5;
-  color: var(--text-muted);
-}
+  /* Body — default reading text */
+  .type-body {
+    font-size: 0.875rem;
+    font-weight: 400;
+    letter-spacing: -0.006em;
+    line-height: 1.6;
+    color: var(--text-alt);
+  }
 
-/* ─── Editorial Rules ─── */
-.rule {
-  border: none;
-  border-top: 1px solid var(--rule);
-}
+  /* Caption — small labels, metadata */
+  .type-caption {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    letter-spacing: -0.003em;
+    line-height: 1.4;
+    color: var(--text-muted);
+  }
 
-.rule-subtle {
-  border: none;
-  border-top: 1px solid var(--border-subtle);
-}
+  /* Overline — kickers, field labels, category markers */
+  .type-overline {
+    font-family: var(--font-mono);
+    font-size: var(--label-font-size);
+    font-weight: var(--label-font-weight);
+    letter-spacing: var(--label-letter-spacing);
+    line-height: var(--label-line-height);
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
 
-/* ─── Buttons ─── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  padding: 0 20px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  white-space: nowrap;
-}
+  .type-stat {
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-default);
+  }
 
-.btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
+  .type-mono {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
 
-.btn-primary {
-  background: var(--text);
-  color: var(--bg);
-  border: 1px solid var(--text);
-}
+  /* ─── Rules ─── */
+  .rule {
+    border: none;
+    border-top: 1px solid var(--border-default);
+  }
 
-.btn-secondary {
-  background: var(--bg);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
+  .rule-subtle {
+    border: none;
+    border-top: 1px solid var(--border-card);
+  }
 
-/* ─── Smooth transitions (scoped) ─── */
-a, button, input, select {
-  transition: all 150ms ease;
+  /* ─── Smooth transitions ─── */
+  a, button, input, select {
+    transition: all 150ms ease;
+  }
 }

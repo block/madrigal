@@ -1,31 +1,33 @@
+import { cn } from '@/lib/utils';
+
 const styles: Record<string, { bg: string; text: string; border: string; borderStyle?: string }> = {
   must: {
-    bg: 'var(--enforcement-must-bg)',
-    text: 'var(--enforcement-must-text)',
-    border: 'var(--enforcement-must-border)',
+    bg: 'bg-[var(--enforcement-must-bg)]',
+    text: 'text-[var(--enforcement-must-text)]',
+    border: 'border-[var(--enforcement-must-border)]',
   },
   should: {
-    bg: 'var(--enforcement-should-bg)',
-    text: 'var(--enforcement-should-text)',
-    border: 'var(--enforcement-should-border)',
-    borderStyle: 'dashed',
+    bg: 'bg-[var(--enforcement-should-bg)]',
+    text: 'text-[var(--enforcement-should-text)]',
+    border: 'border-[var(--enforcement-should-border)]',
+    borderStyle: 'border-dashed',
   },
   may: {
-    bg: 'var(--enforcement-may-bg)',
-    text: 'var(--enforcement-may-text)',
-    border: 'var(--enforcement-may-border)',
-    borderStyle: 'dotted',
+    bg: 'bg-[var(--enforcement-may-bg)]',
+    text: 'text-[var(--enforcement-may-text)]',
+    border: 'border-[var(--enforcement-may-border)]',
+    borderStyle: 'border-dotted',
   },
   context: {
-    bg: 'var(--bg-muted)',
-    text: 'var(--text-muted)',
-    border: 'var(--border)',
+    bg: 'bg-background-muted',
+    text: 'text-text-muted',
+    border: 'border-border-default',
   },
   deprecated: {
-    bg: 'var(--bg-muted)',
-    text: 'var(--text-faint)',
-    border: 'var(--border)',
-    borderStyle: 'dashed',
+    bg: 'bg-background-muted',
+    text: 'text-text-faint',
+    border: 'border-border-default',
+    borderStyle: 'border-dashed',
   },
 };
 
@@ -33,20 +35,10 @@ export function EnforcementBadge({ level }: { level: string }) {
   const s = styles[level] || styles.context;
   return (
     <span
-      className="inline-block shrink-0"
-      style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: '0.625rem',
-        fontWeight: 500,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase' as const,
-        lineHeight: 1,
-        padding: '4px 8px',
-        background: s.bg,
-        color: s.text,
-        border: `1px ${s.borderStyle || 'solid'} ${s.border}`,
-        borderRadius: 'var(--radius-pill)',
-      }}
+      className={cn(
+        'inline-block shrink-0 font-mono text-[0.625rem] font-medium tracking-[0.08em] uppercase leading-none px-2 py-1 rounded-pill border',
+        s.bg, s.text, s.border, s.borderStyle,
+      )}
     >
       {level}
     </span>

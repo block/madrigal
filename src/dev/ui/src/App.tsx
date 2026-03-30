@@ -7,7 +7,6 @@ import { SearchPlayground } from './pages/SearchPlayground';
 import { BuildConsole } from './pages/BuildConsole';
 import { BrandResolution } from './pages/BrandResolution';
 import { TopologyExplorer } from './pages/TopologyExplorer';
-
 export function App() {
   return (
     <BrowserRouter>

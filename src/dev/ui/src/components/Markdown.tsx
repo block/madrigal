@@ -5,18 +5,18 @@ export function Markdown({ children }: { children: string }) {
     <div
       className="prose prose-sm max-w-none"
       style={{
-        '--tw-prose-body': 'var(--text-secondary)',
-        '--tw-prose-headings': 'var(--text)',
-        '--tw-prose-links': 'var(--text)',
-        '--tw-prose-bold': 'var(--text)',
-        '--tw-prose-code': 'var(--text-secondary)',
-        '--tw-prose-pre-bg': 'var(--bg-subtle)',
-        '--tw-prose-pre-code': 'var(--text-secondary)',
+        '--tw-prose-body': 'var(--text-alt)',
+        '--tw-prose-headings': 'var(--text-default)',
+        '--tw-prose-links': 'var(--text-default)',
+        '--tw-prose-bold': 'var(--text-default)',
+        '--tw-prose-code': 'var(--text-alt)',
+        '--tw-prose-pre-bg': 'var(--background-alt)',
+        '--tw-prose-pre-code': 'var(--text-alt)',
         '--tw-prose-bullets': 'var(--text-faint)',
         '--tw-prose-counters': 'var(--text-faint)',
-        '--tw-prose-hr': 'var(--rule)',
-        '--tw-prose-th-borders': 'var(--rule)',
-        '--tw-prose-td-borders': 'var(--border-subtle)',
+        '--tw-prose-hr': 'var(--border-default)',
+        '--tw-prose-th-borders': 'var(--border-default)',
+        '--tw-prose-td-borders': 'var(--border-card)',
         fontFamily: 'var(--font-sans)',
         letterSpacing: '-0.006em',
       } as React.CSSProperties}

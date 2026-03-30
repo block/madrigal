@@ -1,5 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const links = [
   { to: '/', label: 'Dashboard', end: true },
@@ -25,31 +28,17 @@ export function Layout() {
   const { dark, toggle } = useTheme();
 
   return (
-    <div className="flex h-screen p-2 gap-2" style={{ background: 'var(--bg-muted)' }}>
-      {/* Sidebar — inset floating */}
-      <aside
-        className="w-52 shrink-0 flex flex-col overflow-hidden"
-        style={{
-          background: 'var(--bg)',
-          borderRadius: 'var(--radius-card)',
-          boxShadow: 'var(--shadow-card)',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
+    <div className="flex h-screen p-2 gap-2 bg-background-muted">
+      {/* Sidebar */}
+      <aside className="w-52 shrink-0 flex flex-col overflow-hidden bg-background-default rounded-card shadow-card border border-border-card">
         {/* Masthead */}
         <div className="px-5 pt-5 pb-4">
-          <h1 style={{
-            fontSize: '1.375rem',
-            fontWeight: 700,
-            letterSpacing: '-0.04em',
-            lineHeight: 1,
-            color: 'var(--text)',
-          }}>
+          <h1 className="text-[1.25rem] font-bold tracking-[-0.035em] leading-[0.95] text-text-default">
             madrigal
           </h1>
         </div>
 
-        <hr className="rule" style={{ margin: '0 20px' }} />
+        <Separator className="mx-5" />
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-0.5">
@@ -58,15 +47,13 @@ export function Layout() {
               key={to}
               to={to}
               end={'end' in rest}
-              className="block px-3 py-1.5"
-              style={({ isActive }) => ({
-                fontSize: '0.8125rem',
-                fontWeight: isActive ? 600 : 400,
-                letterSpacing: '-0.01em',
-                color: isActive ? 'var(--text)' : 'var(--text-muted)',
-                borderRadius: 'var(--radius-sm)',
-                background: isActive ? 'var(--bg-muted)' : 'transparent',
-              })}
+              className={({ isActive }) =>
+                `block px-3 py-1.5 text-[0.8125rem] tracking-[-0.01em] rounded-card-sm transition-colors ${
+                  isActive
+                    ? 'font-semibold text-text-default bg-background-muted'
+                    : 'font-normal text-text-muted hover:text-text-default hover:bg-background-muted/50'
+                }`
+              }
             >
               {label}
             </NavLink>
@@ -75,36 +62,25 @@ export function Layout() {
 
         {/* Footer */}
         <div className="px-5 py-3 flex items-center justify-between">
-          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>v0.1</span>
-          <button
+          <span className="type-overline text-text-faint">v0.1</span>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={toggle}
-            className="type-overline px-2 py-1"
-            style={{
-              color: 'var(--text-muted)',
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--border)',
-              background: 'var(--bg)',
-            }}
-            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="text-[10px] font-medium tracking-[0.1em] uppercase h-7 px-3"
           >
             {dark ? 'Light' : 'Dark'}
-          </button>
+          </Button>
         </div>
       </aside>
 
-      {/* Main content — also a rounded panel */}
-      <main
-        className="flex-1 overflow-y-auto"
-        style={{
-          background: 'var(--bg)',
-          borderRadius: 'var(--radius-card)',
-          boxShadow: 'var(--shadow-card)',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div className="max-w-[960px] mx-auto px-10 py-10">
-          <Outlet />
-        </div>
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden bg-background-default rounded-card shadow-card border border-border-card">
+        <ScrollArea className="h-full">
+          <div className="max-w-[960px] mx-auto px-10 py-10">
+            <Outlet />
+          </div>
+        </ScrollArea>
       </main>
     </div>
   );

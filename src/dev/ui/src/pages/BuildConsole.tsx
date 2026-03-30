@@ -1,20 +1,14 @@
 import { useState, useEffect } from 'react';
 import { api, type StatsResponse, type PipelineResult, type BuildResult } from '../api';
-
-const selectStyle: React.CSSProperties = {
-  background: 'var(--bg)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-pill)',
-  color: 'var(--text-secondary)',
-  fontSize: '0.8125rem',
-  height: 36,
-  padding: '0 14px',
-  paddingRight: 28,
-  appearance: 'none' as const,
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'right 12px center',
-};
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 export function BuildConsole() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -50,37 +44,37 @@ export function BuildConsole() {
   return (
     <div>
       {/* Page header */}
-      <header className="mb-10">
-        <p className="type-overline mb-3">Pipeline</p>
+      <header className="mb-12">
+        <p className="type-overline mb-4">Pipeline</p>
         <h1 className="type-display">Build</h1>
       </header>
 
       {/* Controls */}
-      <section className="mb-10">
+      <section className="mb-12">
         <div className="flex gap-3 items-end flex-wrap">
           {stats && (
             <div>
               <label className="type-overline block mb-2">Platform</label>
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="focus:outline-none"
-                style={selectStyle}
-              >
-                <option value="">Select platform...</option>
-                {stats.platforms.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <Select value={platform || undefined} onValueChange={(v) => setPlatform(v === '__none__' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select platform...</SelectItem>
+                  {stats.platforms.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           )}
-          <button onClick={() => runBuild(true)} disabled={loading} className="btn btn-secondary">
+          <Button variant="outline" onClick={() => runBuild(true)} disabled={loading}>
             Dry Run
-          </button>
-          <button onClick={() => runBuild(false)} disabled={loading} className="btn btn-primary">
+          </Button>
+          <Button onClick={() => runBuild(false)} disabled={loading}>
             Build All
-          </button>
-          <button onClick={runPreview} disabled={loading || !platform} className="btn btn-secondary">
+          </Button>
+          <Button variant="outline" onClick={runPreview} disabled={loading || !platform}>
             Preview
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -90,25 +84,19 @@ export function BuildConsole() {
       {buildResult && activeTab === 'full' && (
         <section>
           <div className="flex items-baseline gap-6 mb-2">
-            <p className="type-overline" style={{
-              color: buildResult.success ? 'var(--text-muted)' : 'var(--enforcement-must-text)'
-            }}>
+            <p className={`type-overline ${buildResult.success ? 'text-text-muted' : 'text-[var(--enforcement-must-text)]'}`}>
               {buildResult.success ? 'Succeeded' : 'Failed'}
             </p>
-            <p className="type-mono" style={{ color: 'var(--text-faint)' }}>
+            <p className="type-mono text-text-faint">
               {buildResult.totalUnits} units
             </p>
           </div>
-          <hr className="rule mb-6" />
+          <Separator className="mb-8" />
 
           {buildResult.configWarnings.length > 0 && (
-            <div className="mb-6 p-4" style={{
-              borderRadius: 'var(--radius-card)',
-              background: 'var(--enforcement-should-bg)',
-              border: '1px solid var(--enforcement-should-border)',
-            }}>
+            <div className="mb-8 p-4 rounded-card bg-[var(--enforcement-should-bg)] border border-[var(--enforcement-should-border)]">
               {buildResult.configWarnings.map((w, i) => (
-                <p key={i} className="type-body" style={{ color: 'var(--enforcement-should-text)' }}>{w}</p>
+                <p key={i} className="type-body text-[var(--enforcement-should-text)]">{w}</p>
               ))}
             </div>
           )}
@@ -125,7 +113,7 @@ export function BuildConsole() {
       {previewResults && activeTab === 'preview' && (
         <section>
           <p className="type-overline mb-2">Preview</p>
-          <hr className="rule mb-6" />
+          <Separator className="mb-8" />
           <div className="space-y-3">
             {previewResults.map((r, i) => (
               <ResultPanel key={i} result={r} />
@@ -142,35 +130,22 @@ function ResultPanel({ result }: { result: BuildResult }) {
   const label = result.group ? `${result.platform}/${result.group}` : result.platform;
 
   return (
-    <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+    <div className="border-b border-border-card">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between py-4 text-left"
       >
         <div className="flex items-baseline gap-4">
-          <span className="type-title" style={{ fontSize: '0.9375rem' }}>{label}</span>
-          <span className="type-overline" style={{ color: 'var(--text-faint)' }}>
-            {result.format}
-          </span>
-          <span className="type-mono" style={{ color: 'var(--text-faint)' }}>
-            {result.unitCount} units
-          </span>
+          <span className="type-title">{label}</span>
+          <span className="type-overline text-text-faint">{result.format}</span>
+          <span className="type-mono text-text-faint">{result.unitCount} units</span>
         </div>
-        <span className="type-mono" style={{ color: 'var(--text-faint)' }}>
+        <span className="type-mono text-text-faint">
           {expanded ? '\u2212' : '+'}
         </span>
       </button>
       {expanded && result.output && (
-        <pre
-          className="pb-6 overflow-x-auto max-h-96"
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.6875rem',
-            lineHeight: 1.7,
-            color: 'var(--text-muted)',
-            whiteSpace: 'pre-wrap',
-          }}
-        >
+        <pre className="pb-6 overflow-x-auto max-h-96 font-mono text-[0.6875rem] leading-[1.7] text-text-muted whitespace-pre-wrap">
           {result.output}
         </pre>
       )}
