@@ -93,6 +93,72 @@ export interface ResolveResponse {
   total: number;
 }
 
+// --- Workbench types ---
+
+export interface ProposedUnitDTO {
+  filename: string;
+  title: string;
+  domain: string;
+  brand?: string;
+  system?: string;
+  enforcement: string;
+  tags: string[];
+  body: string;
+  related: Array<{ id: string; reason: string }>;
+}
+
+export interface ProposeResponse {
+  proposals: ProposedUnitDTO[];
+}
+
+export interface ComplianceViolationDTO {
+  unitId: string;
+  unitTitle: string;
+  enforcement: string;
+  confidence: number;
+  message: string;
+}
+
+export interface ComplianceResponse {
+  passed: boolean;
+  violations: ComplianceViolationDTO[];
+  warnings: ComplianceViolationDTO[];
+  info: ComplianceViolationDTO[];
+}
+
+export interface AuditUnit {
+  id: string;
+  title: string;
+  domain: string;
+  brand?: string;
+  enforcement: string;
+  sourcePath?: string;
+  provenance: {
+    origin: string;
+    confidence: number;
+    approvedBy?: string;
+    approvedAt?: string;
+    evidence?: string[];
+    proposalStatus?: string;
+  };
+}
+
+export interface AuditResponse {
+  units: AuditUnit[];
+  total: number;
+}
+
+export interface ValidationResponse {
+  loadErrors: Array<{ filePath: string; message: string }>;
+  loadWarnings: Array<{ filePath: string; message: string; field?: string }>;
+  configValidation: {
+    valid: boolean;
+    errors: Array<{ path: string; message: string }>;
+    warnings: Array<{ path: string; message: string }>;
+  };
+  unitCount: number;
+}
+
 export const api = {
   getConfig: () => fetchJson<ConfigResponse>('/config'),
   getStats: () => fetchJson<StatsResponse>('/stats'),
@@ -116,4 +182,27 @@ export const api = {
   topologyStatus: () => fetchJson<{ generated: boolean; unitCount: number; generatedAt: string | null; embeddingModel: string | null }>('/topology/status'),
   topologyGenerate: (body: { provider?: string; apiKey?: string; model?: string; clusters?: number; neighbors?: number; skipLlm?: boolean }) =>
     fetchJson<{ success: boolean; nodes: number; edges: number; clusters: number; model: string }>('/topology/generate', { method: 'POST', body: JSON.stringify(body) }),
+
+  // Workbench
+  propose: (body: {
+    input: string;
+    provider: string;
+    apiKey: string;
+    model?: string;
+    baseUrl?: string;
+    domain?: string;
+    brand?: string;
+    enforcement?: string;
+    batch?: boolean;
+  }) => fetchJson<ProposeResponse>('/workbench/propose', { method: 'POST', body: JSON.stringify(body) }),
+
+  checkCompliance: (body: { content: string; brand?: string; domain?: string; limit?: number }) =>
+    fetchJson<ComplianceResponse>('/workbench/compliance', { method: 'POST', body: JSON.stringify(body) }),
+
+  getAudit: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return fetchJson<AuditResponse>(`/workbench/audit${qs}`);
+  },
+
+  getValidation: () => fetchJson<ValidationResponse>('/workbench/validation'),
 };

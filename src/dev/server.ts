@@ -16,6 +16,9 @@ import { ENFORCEMENT_ORDER } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv } from './topology/index.js';
 import type { TopologyData, EmbeddingProvider } from './topology/index.js';
+import { buildPrompt, parseProposedUnits, findRelated } from '../propose.js';
+import { checkCompliance } from '../compliance/checker.js';
+import { createCompletionFn } from './llm.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const uiRoot = join(__dirname, 'ui');
@@ -298,6 +301,173 @@ export function createApp(baseDir: string): Hono {
     } catch (err) {
       return c.json({ error: String(err) }, 500);
     }
+  });
+
+  // =============================================
+  // Workbench endpoints
+  // =============================================
+
+  // --- POST /api/workbench/propose ---
+  app.post('/api/workbench/propose', async (c) => {
+    const body = await c.req.json<{
+      input: string;
+      provider: 'openai' | 'anthropic';
+      apiKey: string;
+      model?: string;
+      baseUrl?: string;
+      domain?: string;
+      brand?: string;
+      enforcement?: string;
+      batch?: boolean;
+    }>();
+
+    if (!body.input?.trim()) {
+      return c.json({ error: 'input is required' }, 400);
+    }
+    if (!body.provider || !body.apiKey) {
+      return c.json({ error: 'provider and apiKey are required' }, 400);
+    }
+
+    const state = getState();
+    const complete = createCompletionFn({
+      provider: body.provider,
+      apiKey: body.apiKey,
+      model: body.model,
+      baseUrl: body.baseUrl,
+    });
+
+    try {
+      const prompt = buildPrompt(
+        {
+          input: body.input,
+          complete,
+          domain: body.domain,
+          brand: body.brand,
+          enforcement: body.enforcement as any,
+          batch: body.batch,
+        },
+        state.config,
+        state.units,
+      );
+
+      const response = await complete(prompt);
+      const proposed = parseProposedUnits(response);
+
+      const proposals = proposed.map((unit) => ({
+        ...unit,
+        related: findRelated(unit, state.units),
+      }));
+
+      return c.json({ proposals });
+    } catch (err) {
+      return c.json({ error: String(err) }, 500);
+    }
+  });
+
+  // --- POST /api/workbench/compliance ---
+  app.post('/api/workbench/compliance', async (c) => {
+    const body = await c.req.json<{
+      content: string;
+      brand?: string;
+      domain?: string;
+      limit?: number;
+    }>();
+
+    if (!body.content?.trim()) {
+      return c.json({ error: 'content is required' }, 400);
+    }
+
+    const state = getState();
+
+    try {
+      const result = await checkCompliance({
+        content: body.content,
+        brand: body.brand,
+        domain: body.domain,
+        searchAdapter: state.search,
+        units: state.units,
+        config: state.config,
+        baseDir,
+        limit: body.limit,
+      });
+
+      // Serialize violations with slim unit references
+      const serialize = (v: any) => ({
+        unitId: v.knowledgeUnit.id,
+        unitTitle: v.knowledgeUnit.title,
+        enforcement: v.knowledgeUnit.enforcement,
+        confidence: v.matchResult.confidence,
+        message: v.message,
+      });
+
+      return c.json({
+        passed: result.passed,
+        violations: result.violations.map(serialize),
+        warnings: result.warnings.map(serialize),
+        info: result.info.map(serialize),
+      });
+    } catch (err) {
+      return c.json({ error: String(err) }, 500);
+    }
+  });
+
+  // --- GET /api/workbench/audit ---
+  app.get('/api/workbench/audit', (c) => {
+    const state = getState();
+    const origin = c.req.query('origin');
+    const proposalStatus = c.req.query('proposalStatus');
+    const minConfidence = parseFloat(c.req.query('minConfidence') || '0');
+    const maxConfidence = parseFloat(c.req.query('maxConfidence') || '1');
+    const sortBy = c.req.query('sortBy') || 'confidence';
+    const sortDir = c.req.query('sortDir') || 'desc';
+
+    let filtered = state.units.map((u) => ({
+      id: u.id,
+      title: u.title,
+      domain: u.domain,
+      brand: u.brand,
+      enforcement: u.enforcement,
+      sourcePath: u.sourcePath,
+      provenance: u.provenance,
+    }));
+
+    if (origin) {
+      filtered = filtered.filter((u) => u.provenance.origin === origin);
+    }
+    if (proposalStatus) {
+      filtered = filtered.filter((u) => u.provenance.proposalStatus === proposalStatus);
+    }
+    filtered = filtered.filter(
+      (u) => u.provenance.confidence >= minConfidence && u.provenance.confidence <= maxConfidence,
+    );
+
+    // Sort
+    filtered.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'confidence') {
+        cmp = a.provenance.confidence - b.provenance.confidence;
+      } else if (sortBy === 'title') {
+        cmp = a.title.localeCompare(b.title);
+      } else if (sortBy === 'domain') {
+        cmp = a.domain.localeCompare(b.domain);
+      } else if (sortBy === 'origin') {
+        cmp = a.provenance.origin.localeCompare(b.provenance.origin);
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return c.json({ units: filtered, total: filtered.length });
+  });
+
+  // --- GET /api/workbench/validation ---
+  app.get('/api/workbench/validation', (c) => {
+    const state = getState();
+    return c.json({
+      loadErrors: state.loadErrors,
+      loadWarnings: state.loadWarnings,
+      configValidation: state.validation,
+      unitCount: state.units.length,
+    });
   });
 
   // --- POST /api/reload ---

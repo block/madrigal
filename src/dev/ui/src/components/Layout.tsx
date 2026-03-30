@@ -11,6 +11,7 @@ const links = [
   { to: '/search', label: 'Search' },
   { to: '/build', label: 'Build' },
   { to: '/brands', label: 'Brands' },
+  { to: '/workbench', label: 'Workbench' },
 ] as const;
 
 function useTheme() {

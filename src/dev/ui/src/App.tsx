@@ -7,6 +7,7 @@ import { SearchPlayground } from './pages/SearchPlayground';
 import { BuildConsole } from './pages/BuildConsole';
 import { BrandResolution } from './pages/BrandResolution';
 import { TopologyExplorer } from './pages/TopologyExplorer';
+import { Workbench } from './pages/Workbench';
 export function App() {
   return (
     <BrowserRouter>
@@ -19,6 +20,7 @@ export function App() {
           <Route path="build" element={<BuildConsole />} />
           <Route path="brands" element={<BrandResolution />} />
           <Route path="topology" element={<TopologyExplorer />} />
+          <Route path="workbench" element={<Workbench />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
