@@ -1,17 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { api, type ValidationResponse } from '../api';
 
 const links = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/explorer', label: 'Explorer' },
+  { to: '/', label: 'Layers', end: true },
+  { to: '/studio', label: 'Studio' },
+  { to: '/author', label: 'Author' },
   { to: '/topology', label: 'Topology' },
-  { to: '/search', label: 'Search' },
-  { to: '/build', label: 'Build' },
-  { to: '/brands', label: 'Brands' },
-  { to: '/workbench', label: 'Workbench' },
 ] as const;
 
 function useTheme() {
@@ -25,8 +23,27 @@ function useTheme() {
   return { dark, toggle };
 }
 
+function useValidationStatus() {
+  const [status, setStatus] = useState<'ok' | 'warn' | 'error' | null>(null);
+  useEffect(() => {
+    api.getValidation().then((v: ValidationResponse) => {
+      const hasErrors = v.loadErrors.length > 0 || !v.configValidation.valid;
+      const hasWarnings = v.loadWarnings.length > 0 || v.configValidation.warnings.length > 0;
+      setStatus(hasErrors ? 'error' : hasWarnings ? 'warn' : 'ok');
+    }).catch(() => {});
+  }, []);
+  return status;
+}
+
+const statusColors = {
+  ok: 'bg-[var(--enforcement-may-text)]',
+  warn: 'bg-[var(--enforcement-should-text)]',
+  error: 'bg-[var(--enforcement-must-text)]',
+};
+
 export function Layout() {
   const { dark, toggle } = useTheme();
+  const validationStatus = useValidationStatus();
 
   return (
     <div className="flex h-screen p-2 gap-2 bg-background-muted">
@@ -63,7 +80,15 @@ export function Layout() {
 
         {/* Footer */}
         <div className="px-5 py-3 flex items-center justify-between">
-          <span className="type-overline text-text-faint">v0.1</span>
+          <div className="flex items-center gap-2">
+            <span className="type-overline text-text-faint">v0.1</span>
+            {validationStatus && (
+              <span
+                className={`inline-block w-1.5 h-1.5 rounded-full ${statusColors[validationStatus]}`}
+                title={`Validation: ${validationStatus}`}
+              />
+            )}
+          </div>
           <Button
             variant="outline"
             size="sm"

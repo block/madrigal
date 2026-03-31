@@ -105,6 +105,12 @@
   --enforcement-may-text: #3a5f8b;
   --enforcement-may-border: #d0dce8;
 
+  /* Coverage visualization */
+  --coverage-high: var(--enforcement-must-bg);
+  --coverage-medium: var(--enforcement-should-bg);
+  --coverage-low: var(--enforcement-may-bg);
+  --coverage-gap: var(--background-muted);
+
   /* Heading typography — magazine scale */
   --heading-display-size: clamp(2.5rem, 5vw, 4rem);
   --heading-display-line-height: 0.92;
@@ -197,6 +203,12 @@
   --enforcement-may-bg: #121820;
   --enforcement-may-text: #7eaad4;
   --enforcement-may-border: #1a2530;
+
+  /* Coverage visualization */
+  --coverage-high: var(--enforcement-must-bg);
+  --coverage-medium: var(--enforcement-should-bg);
+  --coverage-low: var(--enforcement-may-bg);
+  --coverage-gap: var(--background-muted);
 }
 
 @theme inline {

@@ -3,13 +3,26 @@ import { EnforcementBadge } from './EnforcementBadge';
 import { ScoreBar } from './ScoreBar';
 import type { KnowledgeUnit } from '../api';
 
-export function UnitCard({ unit }: { unit: KnowledgeUnit }) {
+const borderColors: Record<string, string> = {
+  must: 'border-l-[var(--enforcement-must-text)]',
+  should: 'border-l-[var(--enforcement-should-text)]',
+  may: 'border-l-[var(--enforcement-may-text)]',
+  context: 'border-l-border-default',
+  deprecated: 'border-l-border-default',
+};
+
+function excerpt(body: string, max = 80): string {
+  const plain = body.replace(/[#*_`>\-\[\]()]/g, '').replace(/\s+/g, ' ').trim();
+  return plain.length > max ? plain.slice(0, max) + '...' : plain;
+}
+
+export function LayerCard({ unit }: { unit: KnowledgeUnit }) {
   return (
     <Link
-      to={`/units/${encodeURIComponent(unit.id)}`}
+      to={`/layers/${encodeURIComponent(unit.id)}`}
       className="block group no-underline"
     >
-      <article className="py-5 border-b border-border-card">
+      <article className={`py-5 border-b border-border-card pl-4 border-l-2 ${borderColors[unit.enforcement] || borderColors.context}`}>
         {/* Overline: domain / kind */}
         <div className="flex items-center gap-3 mb-2">
           <span className="type-overline">{unit.domain}</span>
@@ -26,6 +39,11 @@ export function UnitCard({ unit }: { unit: KnowledgeUnit }) {
 
         {/* Title */}
         <h3 className="type-title mb-1.5">{unit.title}</h3>
+
+        {/* Effect hint */}
+        {unit.body && (
+          <p className="type-caption text-text-faint mb-1.5">{excerpt(unit.body)}</p>
+        )}
 
         {/* Tags */}
         {unit.tags.length > 0 && (

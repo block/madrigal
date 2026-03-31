@@ -159,6 +159,29 @@ export interface ValidationResponse {
   unitCount: number;
 }
 
+// --- Coverage & Studio types ---
+
+export interface CoverageDomain {
+  domain: string;
+  description: string;
+  count: number;
+  byEnforcement: Record<string, number>;
+  coverageScore: number;
+}
+
+export interface CoverageResponse {
+  domains: CoverageDomain[];
+  totalLayers: number;
+  totalDomains: number;
+  governedDomains: number;
+}
+
+export interface StudioActivateResponse {
+  layers: Array<{ unit: KnowledgeUnit; score: number }>;
+  compliance: ComplianceResponse;
+  timing: { ms: number };
+}
+
 export const api = {
   getConfig: () => fetchJson<ConfigResponse>('/config'),
   getStats: () => fetchJson<StatsResponse>('/stats'),
@@ -205,4 +228,10 @@ export const api = {
   },
 
   getValidation: () => fetchJson<ValidationResponse>('/workbench/validation'),
+
+  // Coverage & Studio
+  getCoverage: () => fetchJson<CoverageResponse>('/coverage'),
+
+  studioActivate: (body: { content: string; brand?: string; domain?: string; limit?: number }) =>
+    fetchJson<StudioActivateResponse>('/studio/activate', { method: 'POST', body: JSON.stringify(body) }),
 };

@@ -13,7 +13,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 
-export function UnitDetail() {
+export function LayerDetail() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<UnitDetailResponse | null>(null);
   const [error, setError] = useState('');
@@ -27,18 +27,17 @@ export function UnitDetail() {
   if (!data) return <p className="type-caption">Loading...</p>;
 
   const { unit, brandResolutions } = data;
+  const overrides = Object.entries(brandResolutions).filter(([, res]) => res.overridden);
 
   return (
     <div>
-      {/* Back link */}
       <Link
-        to="/explorer"
+        to="/"
         className="type-overline inline-block mb-12 text-text-muted no-underline hover:text-text-default"
       >
-        &larr; Explorer
+        &larr; Layers
       </Link>
 
-      {/* Header */}
       <header className="mb-12">
         <div className="flex items-center gap-3 mb-4">
           <span className="type-overline">{unit.domain}</span>
@@ -50,7 +49,6 @@ export function UnitDetail() {
         <p className="type-mono">{unit.id}</p>
       </header>
 
-      {/* Metadata */}
       <section className="mb-14">
         <p className="type-overline mb-4">Metadata</p>
         <h2 className="type-section mb-6">Properties</h2>
@@ -79,7 +77,32 @@ export function UnitDetail() {
         </dl>
       </section>
 
-      {/* Body */}
+      {overrides.length > 0 && (
+        <section className="mb-14">
+          <p className="type-overline mb-4">Composition Chain</p>
+          <h2 className="type-section mb-6">Enforcement Flow</h2>
+          <Separator className="mb-8" />
+
+          <div className="flex flex-col items-start">
+            <div className="flex items-center gap-3 mb-1">
+              <span className="type-overline text-text-muted">Base</span>
+              <EnforcementBadge level={unit.enforcement} />
+            </div>
+
+            {overrides.map(([brand, res]) => (
+              <div key={brand} className="flex flex-col items-start">
+                <div className="w-px h-6 bg-border-card ml-6" />
+                <div className="flex items-center gap-3">
+                  <span className="type-body text-text-default">{brand}</span>
+                  <span className="type-caption text-text-faint">&rarr;</span>
+                  <EnforcementBadge level={res.enforcement} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="mb-14">
         <p className="type-overline mb-4">Content</p>
         <h2 className="type-section mb-6">Body</h2>
@@ -87,7 +110,6 @@ export function UnitDetail() {
         <Markdown>{unit.body}</Markdown>
       </section>
 
-      {/* Brand resolution */}
       {Object.keys(brandResolutions).length > 0 && (
         <section>
           <p className="type-overline mb-4">Brand Resolution</p>

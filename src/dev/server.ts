@@ -223,6 +223,124 @@ export function createApp(baseDir: string): Hono {
     });
   });
 
+  // --- GET /api/coverage ---
+  app.get('/api/coverage', (c) => {
+    const { units, config } = getState();
+
+    const enforcementWeights: Record<string, number> = {
+      must: 1.0,
+      should: 0.7,
+      may: 0.4,
+      context: 0.2,
+      deprecated: 0,
+    };
+
+    // Group units by domain
+    const domainMap = new Map<string, { count: number; byEnforcement: Record<string, number> }>();
+
+    for (const u of units) {
+      let entry = domainMap.get(u.domain);
+      if (!entry) {
+        entry = { count: 0, byEnforcement: {} };
+        domainMap.set(u.domain, entry);
+      }
+      entry.count++;
+      entry.byEnforcement[u.enforcement] = (entry.byEnforcement[u.enforcement] || 0) + 1;
+    }
+
+    // Include config domains with zero units (coverage gaps)
+    for (const d of Object.keys(config.domains)) {
+      if (!domainMap.has(d)) {
+        domainMap.set(d, { count: 0, byEnforcement: {} });
+      }
+    }
+
+    const domains = Array.from(domainMap.entries()).map(([domain, data]) => {
+      // Coverage score: weighted enforcement sum normalized
+      let weightedSum = 0;
+      for (const [enf, count] of Object.entries(data.byEnforcement)) {
+        weightedSum += (enforcementWeights[enf] ?? 0) * count;
+      }
+      const coverageScore = data.count > 0 ? Math.min(1, weightedSum / data.count) : 0;
+      const desc = config.domains[domain];
+
+      return {
+        domain,
+        description: desc?.description ?? '',
+        count: data.count,
+        byEnforcement: data.byEnforcement,
+        coverageScore,
+      };
+    });
+
+    // Sort by count descending
+    domains.sort((a, b) => b.count - a.count);
+    const governedDomains = domains.filter((d) => d.count > 0).length;
+
+    return c.json({
+      domains,
+      totalLayers: units.length,
+      totalDomains: domains.length,
+      governedDomains,
+    });
+  });
+
+  // --- POST /api/studio/activate ---
+  app.post('/api/studio/activate', async (c) => {
+    const body = await c.req.json<{
+      content: string;
+      brand?: string;
+      domain?: string;
+      limit?: number;
+    }>();
+
+    if (!body.content?.trim()) {
+      return c.json({ error: 'content is required' }, 400);
+    }
+
+    const state = getState();
+    const start = performance.now();
+
+    // Run search and compliance in parallel
+    const [searchResults, complianceResult] = await Promise.all([
+      state.search.semanticSearch(body.content, {
+        domain: body.domain,
+        brand: body.brand,
+        limit: body.limit ?? 30,
+      }),
+      checkCompliance({
+        content: body.content,
+        brand: body.brand,
+        domain: body.domain,
+        searchAdapter: state.search,
+        units: state.units,
+        config: state.config,
+        baseDir,
+      }),
+    ]);
+
+    const elapsed = Math.round((performance.now() - start) * 100) / 100;
+
+    const serialize = (v: any) => ({
+      unitId: v.knowledgeUnit.id,
+      unitTitle: v.knowledgeUnit.title,
+      enforcement: v.knowledgeUnit.enforcement,
+      confidence: v.matchResult.confidence,
+      message: v.message,
+    });
+
+    return c.json({
+      layers: searchResults.map((r) => ({ unit: r.unit, score: r.score })),
+      compliance: {
+        passed: complianceResult.passed,
+        violations: complianceResult.violations.map(serialize),
+        warnings: complianceResult.warnings.map(serialize),
+        info: complianceResult.info.map(serialize),
+      },
+      timing: { ms: elapsed },
+    });
+  });
+
   // --- Topology endpoints ---
   let cachedTopology: TopologyData | null = null;
 
