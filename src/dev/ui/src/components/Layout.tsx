@@ -9,7 +9,6 @@ const links = [
   { to: '/', label: 'Layers', end: true },
   { to: '/studio', label: 'Studio' },
   { to: '/author', label: 'Author' },
-  { to: '/topology', label: 'Topology' },
 ] as const;
 
 function useTheme() {
@@ -103,7 +102,7 @@ export function Layout() {
       {/* Main content */}
       <main className="flex-1 overflow-hidden bg-background-default rounded-card shadow-card border border-border-card">
         <ScrollArea className="h-full">
-          <div className="max-w-[960px] mx-auto px-10 py-10">
+          <div className="px-10 py-10">
             <Outlet />
           </div>
         </ScrollArea>
