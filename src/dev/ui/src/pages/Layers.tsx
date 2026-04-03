@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Canvas } from '@react-three/fiber';
-import type { TopologyView, TopologyData } from '../topology/types';
+import type { TopologyView, TopologyData, SemanticQueryResult } from '../topology/types';
 import { CAMERA_POSITION, CAMERA_FOV, CAMERA_FLY_OFFSET, VIEW_DESCRIPTIONS } from '../topology/constants';
 import useShortestPath from '../topology/useShortestPath';
 import Scene from '../topology/Scene';
@@ -98,6 +98,7 @@ function TopologyTab() {
   const [pathMode, setPathMode] = useState(false);
   const [pathStart, setPathStart] = useState<string | null>(null);
   const [pathEnd, setPathEnd] = useState<string | null>(null);
+  const [semanticQuery, setSemanticQuery] = useState<SemanticQueryResult | null>(null);
 
   const [provider, setProvider] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -261,11 +262,12 @@ function TopologyTab() {
           cameraTarget={cameraTarget}
           onCameraComplete={() => setCameraTarget(null)}
           highlightedPath={pathResult}
+          semanticQuery={semanticQuery}
         />
       </Canvas>
 
       {searchOpen && (
-        <SearchOverlay data={data} onSelect={(id) => handleSelect(id)} onClose={() => setSearchOpen(false)} />
+        <SearchOverlay data={data} onSelect={(id) => handleSelect(id)} onClose={() => setSearchOpen(false)} onSemanticResult={setSemanticQuery} />
       )}
 
       <div className="absolute bottom-4 left-4 z-10 font-mono text-[11px] leading-relaxed select-none">
@@ -314,7 +316,6 @@ export function Layers() {
   const [units, setUnits] = useState<KnowledgeUnit[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [reloading, setReloading] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [filters, setFilters] = useState({
     domain: '',
@@ -353,14 +354,6 @@ export function Layers() {
   useEffect(() => {
     fetchUnits();
   }, [fetchUnits]);
-
-  const reload = async () => {
-    setReloading(true);
-    await api.reload();
-    load();
-    await fetchUnits();
-    setReloading(false);
-  };
 
   const handleFilterChange = (key: string, value: string) => {
     setOffset(0);
@@ -407,12 +400,6 @@ export function Layers() {
     <div>
       {/* Page header */}
       <header className="mb-8">
-        <div className="flex items-end justify-between mb-4">
-          <p className="type-overline">Intelligence</p>
-          <Button onClick={reload} disabled={reloading}>
-            {reloading ? 'Reloading...' : 'Reload'}
-          </Button>
-        </div>
         <h1 className="type-display">Layers</h1>
       </header>
 

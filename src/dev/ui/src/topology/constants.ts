@@ -40,3 +40,8 @@ export const LOD_FAR_THRESHOLD = 12;
 export const LOD_NEAR_THRESHOLD = 5;
 export const LOD_HYSTERESIS = 0.5;
 export const LOD_MID_VISIBLE_COUNT = 15;
+
+export const PARTICLES_PER_NODE = 18;
+export const PARTICLE_CLUSTER_RADIUS = 0.12;
+export const PARTICLE_BASE_SIZE = 4.0;
+export const PARTICLE_COLOR_JITTER = 0.08;

@@ -14,7 +14,7 @@ import { resolveForBrand } from '../resolver.js';
 import { build, buildPlatformByName } from '../pipeline.js';
 import { ENFORCEMENT_ORDER } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
-import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv } from './topology/index.js';
+import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv, cosineSimilarity } from './topology/index.js';
 import type { TopologyData, EmbeddingProvider } from './topology/index.js';
 import { buildPrompt, parseProposedUnits, findRelated } from '../propose.js';
 import { checkCompliance } from '../compliance/checker.js';
@@ -415,6 +415,89 @@ export function createApp(baseDir: string): Hono {
         edges: cachedTopology.metadata.edgeCount,
         clusters: cachedTopology.metadata.clusterCount,
         model: cachedTopology.metadata.embeddingModel,
+      });
+    } catch (err) {
+      return c.json({ error: String(err) }, 500);
+    }
+  });
+
+  app.post('/api/topology/query', async (c) => {
+    if (!cachedTopology?.semanticIndex) {
+      return c.json({ error: 'No semantic index available. Regenerate topology first.' }, 400);
+    }
+
+    const body = await c.req.json<{
+      query: string;
+      provider?: string;
+      apiKey?: string;
+      model?: string;
+      baseUrl?: string;
+      limit?: number;
+    }>().catch(() => null);
+
+    if (!body?.query) {
+      return c.json({ error: 'Missing query field' }, 400);
+    }
+
+    const { semanticIndex } = cachedTopology;
+    const limit = body.limit ?? 5;
+
+    // build embedding provider for query
+    let embeddingProvider: EmbeddingProvider | undefined;
+    const provider = body.provider ?? process.env.MADRIGAL_EMBEDDING_PROVIDER;
+    const apiKey = body.apiKey ?? process.env.MADRIGAL_API_KEY;
+
+    if (provider && apiKey) {
+      switch (provider) {
+        case 'openai':
+          embeddingProvider = createOpenAIProvider({ apiKey, model: body.model, baseUrl: body.baseUrl });
+          break;
+        case 'voyage':
+          embeddingProvider = createVoyageProvider({ apiKey, model: body.model });
+          break;
+      }
+    } else {
+      embeddingProvider = createProviderFromEnv() ?? undefined;
+    }
+
+    if (!embeddingProvider) {
+      return c.json({ error: 'No embedding provider configured for query' }, 400);
+    }
+
+    try {
+      const [queryEmbedding] = await embeddingProvider.embed([body.query]);
+
+      // project into PCA space
+      const { mean, components } = semanticIndex.pcaBasis;
+      const centered = queryEmbedding.map((v, d) => v - mean[d]);
+      const projected = components.map((comp) =>
+        comp.reduce((sum, val, d) => sum + centered[d] * val, 0),
+      );
+
+      // normalize to same range as topology positions
+      const { min: nMin, max: nMax } = semanticIndex.normRanges;
+      const normalized = projected.map((v, i) => {
+        const range = nMax[i] - nMin[i];
+        return range < 1e-9 ? 0 : 2 * (v - nMin[i]) / range - 1;
+      });
+
+      const scale = semanticIndex.scale;
+      const queryPosition: [number, number, number] = [
+        normalized[0] * scale,
+        normalized[1] * scale,
+        normalized[2] * scale,
+      ];
+
+      // cosine similarity to all stored embeddings
+      const similarities = semanticIndex.embeddings.map((emb, i) => ({
+        nodeId: cachedTopology!.nodes[i].id,
+        similarity: Math.round(cosineSimilarity(queryEmbedding, emb) * 10000) / 10000,
+      }));
+      similarities.sort((a, b) => b.similarity - a.similarity);
+
+      return c.json({
+        queryPosition,
+        matches: similarities.slice(0, limit),
       });
     } catch (err) {
       return c.json({ error: String(err) }, 500);

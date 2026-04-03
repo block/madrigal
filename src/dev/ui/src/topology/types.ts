@@ -40,4 +40,15 @@ export type TopologyData = {
     clusterCount: number;
     embeddingModel: string;
   };
+  semanticIndex?: {
+    embeddings: number[][];
+    pcaBasis: { mean: number[]; components: number[][] };
+    scale: number;
+    normRanges: { min: [number, number, number]; max: [number, number, number] };
+  };
+};
+
+export type SemanticQueryResult = {
+  queryPosition: [number, number, number];
+  matches: { nodeId: string; similarity: number }[];
 };

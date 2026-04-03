@@ -43,6 +43,73 @@ export function findMedoid(embeddings: number[][]): number {
   return bestIdx;
 }
 
+export type PCABasis = {
+  mean: number[];
+  components: number[][];
+};
+
+/** PCA via power iteration, returning both projections and basis vectors. */
+export function pcaWithBasis(
+  data: number[][],
+  nComponents: number,
+): { projected: number[][]; basis: PCABasis } {
+  const n = data.length;
+  const dim = data[0].length;
+  const k = Math.min(nComponents, dim, n);
+
+  const mean = new Array(dim).fill(0);
+  for (let i = 0; i < n; i++) {
+    for (let d = 0; d < dim; d++) mean[d] += data[i][d];
+  }
+  for (let d = 0; d < dim; d++) mean[d] /= n;
+
+  const centered = data.map((row) => row.map((v, d) => v - mean[d]));
+  const components: number[][] = [];
+  const residual = centered.map((row) => [...row]);
+
+  for (let c = 0; c < k; c++) {
+    let vec = Array.from({ length: dim }, () => Math.random() - 0.5);
+    let norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
+    vec = vec.map((v) => v / norm);
+
+    for (let iter = 0; iter < 100; iter++) {
+      const newVec = new Array(dim).fill(0);
+      for (let i = 0; i < n; i++) {
+        let dot = 0;
+        for (let d = 0; d < dim; d++) dot += residual[i][d] * vec[d];
+        for (let d = 0; d < dim; d++) newVec[d] += residual[i][d] * dot;
+      }
+      norm = Math.sqrt(newVec.reduce((s, v) => s + v * v, 0));
+      if (norm < 1e-12) break;
+      vec = newVec.map((v) => v / norm);
+    }
+
+    components.push(vec);
+
+    for (let i = 0; i < n; i++) {
+      let dot = 0;
+      for (let d = 0; d < dim; d++) dot += residual[i][d] * vec[d];
+      for (let d = 0; d < dim; d++) residual[i][d] -= dot * vec[d];
+    }
+  }
+
+  const projected: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const p = new Array(k).fill(0);
+    for (let c = 0; c < k; c++) {
+      for (let d = 0; d < dim; d++) {
+        p[c] += centered[i][d] * components[c][d];
+      }
+    }
+    if (k < nComponents) {
+      while (p.length < nComponents) p.push(0);
+    }
+    projected.push(p);
+  }
+
+  return { projected, basis: { mean, components } };
+}
+
 /** Simple PCA via power iteration. Returns top-k principal components projected. */
 export function pca(data: number[][], nComponents: number): number[][] {
   const n = data.length;

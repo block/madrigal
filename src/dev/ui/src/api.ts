@@ -205,6 +205,8 @@ export const api = {
   topologyStatus: () => fetchJson<{ generated: boolean; unitCount: number; generatedAt: string | null; embeddingModel: string | null }>('/topology/status'),
   topologyGenerate: (body: { provider?: string; apiKey?: string; model?: string; clusters?: number; neighbors?: number; skipLlm?: boolean }) =>
     fetchJson<{ success: boolean; nodes: number; edges: number; clusters: number; model: string }>('/topology/generate', { method: 'POST', body: JSON.stringify(body) }),
+  topologyQuery: (body: { query: string; provider?: string; apiKey?: string; limit?: number }) =>
+    fetchJson<{ queryPosition: [number, number, number]; matches: { nodeId: string; similarity: number }[] }>('/topology/query', { method: 'POST', body: JSON.stringify(body) }),
 
   // Workbench
   propose: (body: {

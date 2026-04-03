@@ -29,6 +29,19 @@ export type TopologyCluster = {
   position: [number, number, number];
 };
 
+export type SemanticIndex = {
+  embeddings: number[][];
+  pcaBasis: {
+    mean: number[];
+    components: number[][];
+  };
+  scale: number;
+  normRanges: {
+    min: [number, number, number];
+    max: [number, number, number];
+  };
+};
+
 export type TopologyData = {
   nodes: TopologyNode[];
   edges: TopologyEdge[];
@@ -40,6 +53,7 @@ export type TopologyData = {
     clusterCount: number;
     embeddingModel: string;
   };
+  semanticIndex?: SemanticIndex;
 };
 
 export type EmbeddingProvider = {

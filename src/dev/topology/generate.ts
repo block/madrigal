@@ -45,7 +45,7 @@ export async function generateTopology(
   const { positions: centralizedPos, medoidIdx } = computeCentralized(embeddings);
   const { positions: decentralizedPos, labels: clusterLabels, hubPositions } =
     computeDecentralized(embeddings, Math.min(nClusters, units.length));
-  const distributedPos = computeDistributed(embeddings);
+  const { positions: distributedPos, pcaBasis, normRanges } = computeDistributed(embeddings);
 
   // 3. Build edges
   const rawEdges = buildKnnEdges(embeddings, kNeighbors);
@@ -127,6 +127,12 @@ export async function generateTopology(
       edgeCount: edges.length,
       clusterCount: clusterList.length,
       embeddingModel: modelName,
+    },
+    semanticIndex: {
+      embeddings,
+      pcaBasis,
+      scale,
+      normRanges,
     },
   };
 }

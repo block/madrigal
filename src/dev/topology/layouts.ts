@@ -2,10 +2,12 @@ import {
   findMedoid,
   cosineDistancesToRow,
   pca,
+  pcaWithBasis,
   kmeans,
   fibonacciSphere,
   normalize,
 } from './math.js';
+import type { PCABasis } from './math.js';
 
 /** Centralized layout: all nodes radiate from the embedding medoid. */
 export function computeCentralized(
@@ -95,11 +97,27 @@ export function computeDecentralized(
 /** Distributed layout: PCA-3D projection (lightweight fallback for UMAP). */
 export function computeDistributed(
   embeddings: number[][],
-): [number, number, number][] {
-  const pcaCoords = pca(embeddings, 3);
-  const xs = normalize(pcaCoords.map((p) => p[0]));
-  const ys = normalize(pcaCoords.map((p) => p[1]));
-  const zs = normalize(pcaCoords.map((p) => p[2]));
+): {
+  positions: [number, number, number][];
+  pcaBasis: PCABasis;
+  normRanges: { min: [number, number, number]; max: [number, number, number] };
+} {
+  const { projected: pcaCoords, basis } = pcaWithBasis(embeddings, 3);
 
-  return pcaCoords.map((_, i) => [xs[i], ys[i], zs[i]]);
+  const rawX = pcaCoords.map((p) => p[0]);
+  const rawY = pcaCoords.map((p) => p[1]);
+  const rawZ = pcaCoords.map((p) => p[2]);
+
+  const xs = normalize(rawX);
+  const ys = normalize(rawY);
+  const zs = normalize(rawZ);
+
+  const normRanges = {
+    min: [Math.min(...rawX), Math.min(...rawY), Math.min(...rawZ)] as [number, number, number],
+    max: [Math.max(...rawX), Math.max(...rawY), Math.max(...rawZ)] as [number, number, number],
+  };
+
+  const positions: [number, number, number][] = pcaCoords.map((_, i) => [xs[i], ys[i], zs[i]]);
+
+  return { positions, pcaBasis: basis, normRanges };
 }
