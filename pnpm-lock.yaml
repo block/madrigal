@@ -8,12 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@hono/node-server':
+        specifier: ^1.13.0
+        version: 1.19.12(hono@4.12.10)
       fast-glob:
         specifier: ^3.3.2
         version: 3.3.3
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      hono:
+        specifier: ^4.6.0
+        version: 4.12.10
       yaml:
         specifier: ^2.3.4
         version: 2.8.2
