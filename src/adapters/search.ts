@@ -1,5 +1,5 @@
-import type { KnowledgeUnit, Domain } from '../schema/knowledge-unit.js';
 import type { Enforcement } from '../enforcement.js';
+import type { Domain, KnowledgeUnit } from '../schema/knowledge-unit.js';
 
 /**
  * Filter for exact rule matching (deterministic search).
@@ -72,6 +72,6 @@ export interface SearchAdapter {
    */
   semanticSearch(
     query: string,
-    options?: SemanticSearchOptions
+    options?: SemanticSearchOptions,
   ): Promise<ScoredKnowledgeUnit[]>;
 }

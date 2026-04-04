@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from './pipeline.js';
-import { loadConfig, validateConfig } from './config.js';
-import { loadKnowledge } from './loader.js';
+import { loadConfig, type MadrigalConfig, validateConfig } from './config.js';
 import { defaultRegistry } from './formats/index.js';
-import { propose, type ProposeOptions, type LlmCompletionFn } from './propose.js';
+import { loadKnowledge } from './loader.js';
+import { build } from './pipeline.js';
+import {
+  type LlmCompletionFn,
+  type ProposeOptions,
+  propose,
+} from './propose.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')) as { version: string };
+const pkg = JSON.parse(
+  readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'),
+) as { version: string };
 
 // Load .env file if present (simple loader, no dependency needed)
 function loadDotenv() {
@@ -130,10 +136,12 @@ async function runBuild() {
 
   if (result.loadErrors.length > 0) {
     console.warn(`  ${result.loadErrors.length} load error(s):`);
-    for (const e of result.loadErrors) console.warn(`    ${e.filePath}: ${e.message}`);
+    for (const e of result.loadErrors)
+      console.warn(`    ${e.filePath}: ${e.message}`);
   }
   if (result.loadWarnings.length > 0) {
-    for (const w of result.loadWarnings) console.warn(`    ${w.filePath}: ${w.message}`);
+    for (const w of result.loadWarnings)
+      console.warn(`    ${w.filePath}: ${w.message}`);
   }
   if (result.configWarnings.length > 0) {
     for (const w of result.configWarnings) console.warn(`  ${w}`);
@@ -168,7 +176,7 @@ async function runBuild() {
 async function runValidate() {
   const baseDir = process.cwd();
 
-  let config;
+  let config: MadrigalConfig;
   try {
     config = loadConfig();
   } catch (err) {
@@ -179,11 +187,13 @@ async function runValidate() {
   const validation = validateConfig(config, defaultRegistry.list());
   if (validation.errors.length > 0) {
     console.error('Config errors:');
-    for (const e of validation.errors) console.error(`  ${e.path}: ${e.message}`);
+    for (const e of validation.errors)
+      console.error(`  ${e.path}: ${e.message}`);
   }
   if (validation.warnings.length > 0) {
     console.warn('Config warnings:');
-    for (const w of validation.warnings) console.warn(`  ${w.path}: ${w.message}`);
+    for (const w of validation.warnings)
+      console.warn(`  ${w.path}: ${w.message}`);
   }
 
   const loadResult = await loadKnowledge({
@@ -196,14 +206,17 @@ async function runValidate() {
 
   if (loadResult.errors.length > 0) {
     console.error(`\n${loadResult.errors.length} load error(s):`);
-    for (const e of loadResult.errors) console.error(`  ${e.filePath}: ${e.message}`);
+    for (const e of loadResult.errors)
+      console.error(`  ${e.filePath}: ${e.message}`);
   }
   if (loadResult.warnings.length > 0) {
     console.warn(`\n${loadResult.warnings.length} load warning(s):`);
-    for (const w of loadResult.warnings) console.warn(`  ${w.filePath}: ${w.message}`);
+    for (const w of loadResult.warnings)
+      console.warn(`  ${w.filePath}: ${w.message}`);
   }
 
-  const hasErrors = validation.errors.length > 0 || loadResult.errors.length > 0;
+  const hasErrors =
+    validation.errors.length > 0 || loadResult.errors.length > 0;
   if (hasErrors) {
     console.error('\nValidation failed.');
     process.exit(1);
@@ -256,7 +269,13 @@ async function runPropose() {
   const batch = hasFlag('--batch');
 
   // Collect input: from args first, fall back to stdin
-  const flagsToSkip = new Set(['--domain', '--brand', '--enforcement', '--batch', 'propose']);
+  const flagsToSkip = new Set([
+    '--domain',
+    '--brand',
+    '--enforcement',
+    '--batch',
+    'propose',
+  ]);
   let input = '';
 
   // Try to collect non-flag args as input
@@ -276,7 +295,9 @@ async function runPropose() {
   }
 
   if (!input.trim()) {
-    console.error('No input provided. Pass text as arguments or pipe via stdin.');
+    console.error(
+      'No input provided. Pass text as arguments or pipe via stdin.',
+    );
     console.error('  madrigal propose "Button labels should use verb+object"');
     console.error('  cat notes.md | madrigal propose --batch');
     process.exit(1);
@@ -284,7 +305,9 @@ async function runPropose() {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY environment variable is required for propose.');
+    console.error(
+      'ANTHROPIC_API_KEY environment variable is required for propose.',
+    );
     process.exit(1);
   }
 
@@ -319,9 +342,13 @@ async function runPropose() {
       }
     }
 
-    console.log(`\n${results.filter(r => !r.skipped).length} file(s) written. Edit, then commit when ready.`);
+    console.log(
+      `\n${results.filter((r) => !r.skipped).length} file(s) written. Edit, then commit when ready.`,
+    );
   } catch (err) {
-    console.error(`Propose failed: ${err instanceof Error ? err.message : err}`);
+    console.error(
+      `Propose failed: ${err instanceof Error ? err.message : err}`,
+    );
     process.exit(1);
   }
 }
@@ -345,7 +372,10 @@ async function runServe() {
 async function runCheck() {
   const brand = parseFlag('--brand');
   const domain = parseFlag('--domain');
-  const format = (parseFlag('--format') || 'markdown') as 'markdown' | 'json' | 'sarif';
+  const format = (parseFlag('--format') || 'markdown') as
+    | 'markdown'
+    | 'json'
+    | 'sarif';
   const baseDir = process.cwd();
 
   // Collect input from args or stdin
@@ -365,14 +395,20 @@ async function runCheck() {
   }
 
   if (!input.trim()) {
-    console.error('No input provided. Pass text as arguments or pipe via stdin.');
+    console.error(
+      'No input provided. Pass text as arguments or pipe via stdin.',
+    );
     console.error('  madrigal check "The transaction failed"');
     console.error('  echo "button text" | madrigal check --brand cashapp');
     process.exit(1);
   }
 
   const config = loadConfig();
-  const loadResult = await loadKnowledge({ sources: config.sources, config, baseDir });
+  const loadResult = await loadKnowledge({
+    sources: config.sources,
+    config,
+    baseDir,
+  });
 
   const { BM25SearchAdapter } = await import('./search/adapter.js');
   const { checkCompliance } = await import('./compliance/checker.js');
@@ -410,7 +446,11 @@ async function runEvalCmd() {
   const baseDir = process.cwd();
 
   const config = loadConfig();
-  const loadResult = await loadKnowledge({ sources: config.sources, config, baseDir });
+  const loadResult = await loadKnowledge({
+    sources: config.sources,
+    config,
+    baseDir,
+  });
 
   if (loadResult.units.length === 0) {
     console.error('No knowledge units found.');
@@ -428,7 +468,9 @@ async function runEvalCmd() {
     process.exit(0);
   }
 
-  console.log(`Eval: ${summary.passed}/${summary.total} passed (${Math.round(summary.passRate * 100)}%)\n`);
+  console.log(
+    `Eval: ${summary.passed}/${summary.total} passed (${Math.round(summary.passRate * 100)}%)\n`,
+  );
 
   for (const result of summary.results) {
     const icon = result.passed ? 'PASS' : 'FAIL';
@@ -452,7 +494,9 @@ function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = '';
     process.stdin.setEncoding('utf-8');
-    process.stdin.on('data', (chunk) => { data += chunk; });
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
     process.stdin.on('end', () => resolve(data));
     process.stdin.on('error', reject);
   });

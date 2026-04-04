@@ -26,7 +26,7 @@ export interface Preprocessor {
    */
   process(
     units: KnowledgeUnit[],
-    config: MadrigalConfig
+    config: MadrigalConfig,
   ): KnowledgeUnit[] | Promise<KnowledgeUnit[]>;
 }
 
@@ -45,7 +45,7 @@ export class PreprocessorRegistry {
   register(preprocessor: Preprocessor): void {
     if (this.preprocessors.has(preprocessor.name)) {
       throw new Error(
-        `Preprocessor "${preprocessor.name}" is already registered`
+        `Preprocessor "${preprocessor.name}" is already registered`,
       );
     }
     this.preprocessors.set(preprocessor.name, preprocessor);

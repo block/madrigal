@@ -35,7 +35,7 @@ export interface Format {
    */
   compile(
     units: KnowledgeUnit[],
-    options: FormatOptions
+    options: FormatOptions,
   ): string | Promise<string>;
 }
 

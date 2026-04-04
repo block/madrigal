@@ -1,10 +1,10 @@
-import type {
-  KnowledgeUnit,
-  CreateKnowledgeUnit,
-  UpdateKnowledgeUnit,
-  Domain,
-} from '../schema/knowledge-unit.js';
 import type { Enforcement } from '../enforcement.js';
+import type {
+  CreateKnowledgeUnit,
+  Domain,
+  KnowledgeUnit,
+  UpdateKnowledgeUnit,
+} from '../schema/knowledge-unit.js';
 
 /**
  * Filter options for querying knowledge units.

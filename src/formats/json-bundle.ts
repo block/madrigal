@@ -1,5 +1,5 @@
-import type { Format, FormatOptions } from './registry.js';
 import type { KnowledgeUnit } from '../schema/index.js';
+import type { Format, FormatOptions } from './registry.js';
 
 /**
  * JSON bundle output structure.

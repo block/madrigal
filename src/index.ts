@@ -1,68 +1,74 @@
 // Schema types
+
+// Adapters
 export type {
-  Domain,
-  KnowledgeUnit,
-  KnowledgeFrontmatter,
-  CreateKnowledgeUnit,
-  UpdateKnowledgeUnit,
-  KnowledgeUnitWithEmbedding,
-  Brand,
-  CreateBrand,
-  BrandEnforcementOverride,
-  CreateBrandEnforcementOverride,
-} from './schema/index.js';
-
-// Enforcement
-export type { Enforcement } from './enforcement.js';
-export {
-  ENFORCEMENT_ORDER,
-  compareEnforcement,
-  isEnforceable,
-  parseEnforcement,
-} from './enforcement.js';
-
-// Provenance
+  QueryFilter,
+  RuleFilter,
+  ScoredKnowledgeUnit,
+  SearchAdapter,
+  SemanticSearchOptions,
+  StorageAdapter,
+} from './adapters/index.js';
+export { type CheckOptions, checkCompliance } from './compliance/checker.js';
+// Compliance
 export type {
-  Provenance,
-  ProvenanceOrigin,
-  ProposalStatus,
-} from './provenance.js';
-export {
-  createHumanProvenance,
-  createSystemProposedProvenance,
-  createExtractedProvenance,
-  createFileProvenance,
-} from './provenance.js';
-
+  ComplianceResult,
+  ComplianceViolation,
+  OutputFormat,
+  ReportOptions,
+} from './compliance/index.js';
+export { formatReport } from './compliance/report.js';
 // Config
 export type {
-  MadrigalConfig,
+  BrandConfig,
   DomainConfig,
   KindConfig,
-  BrandConfig,
+  MadrigalConfig,
   PlatformConfig,
-  ValidationResult,
   ValidationError,
+  ValidationResult,
   ValidationWarning,
 } from './config.js';
 export {
-  loadConfig,
-  validateConfig,
+  getBrandNames,
   getDomainNames,
   getKindNames,
-  getBrandNames,
   getPlatformNames,
+  loadConfig,
+  validateConfig,
 } from './config.js';
-
+// Enforcement
+export type { Enforcement } from './enforcement.js';
+export {
+  compareEnforcement,
+  ENFORCEMENT_ORDER,
+  isEnforceable,
+  parseEnforcement,
+} from './enforcement.js';
+// Eval
+export {
+  type EvalResult,
+  type EvalSummary,
+  evaluatePrompt,
+  type GoldenPrompt,
+  loadGoldenPrompts,
+  runEval,
+} from './eval/index.js';
+export { aiRulesMdFormat } from './formats/ai-rules-md.js';
+// Formats
+export type { Format, FormatOptions } from './formats/index.js';
+export { defaultRegistry, FormatRegistry } from './formats/index.js';
+export { jsonBundleFormat } from './formats/json-bundle.js';
+export { meshDomainFormat } from './formats/mesh-domain.js';
+export { skillMdFormat } from './formats/skill-md.js';
 // Loader
 export type {
+  LoadError,
   LoadOptions,
   LoadResult,
-  LoadError,
   LoadWarning,
 } from './loader.js';
 export { loadKnowledge, loadKnowledgeSync } from './loader.js';
-
 // Pipeline
 export type {
   BuildOptions,
@@ -71,77 +77,68 @@ export type {
 } from './pipeline.js';
 export { build, buildPlatformByName } from './pipeline.js';
 
-// Resolver
-export type {
-  ResolveOptions,
-  EnforcementOverride,
-  OverridesFile,
-} from './resolver.js';
-export {
-  resolveForBrand,
-  resolveUnits,
-  groupUnitsBy,
-  filterByDomain,
-  filterByEnforcement,
-  filterByAttributes,
-  filterBySystem,
-} from './resolver.js';
-
-// Formats
-export type { Format, FormatOptions } from './formats/index.js';
-export { FormatRegistry, defaultRegistry } from './formats/index.js';
-export { jsonBundleFormat } from './formats/json-bundle.js';
-export { skillMdFormat } from './formats/skill-md.js';
-export { meshDomainFormat } from './formats/mesh-domain.js';
-export { aiRulesMdFormat } from './formats/ai-rules-md.js';
-
 // Preprocessors
 export type { Preprocessor } from './preprocessors/index.js';
 export {
-  PreprocessorRegistry,
   defaultPreprocessorRegistry,
+  PreprocessorRegistry,
 } from './preprocessors/index.js';
 
 // Propose (authoring assistant)
-export type { LlmCompletionFn, ProposeOptions, ProposeResult } from './propose.js';
-export { propose, parseProposedUnits, findRelated } from './propose.js';
-
-// Search (BM25 implementation)
-export { BM25Index, tokenize, type BM25Options } from './search/index.js';
-export { BM25SearchAdapter } from './search/index.js';
-
-// Serve (MCP server)
-export { serveMcp, type ServeOptions } from './serve/index.js';
-
-// Adapters
 export type {
-  StorageAdapter,
-  QueryFilter,
-  SearchAdapter,
-  RuleFilter,
-  SemanticSearchOptions,
-  ScoredKnowledgeUnit,
-} from './adapters/index.js';
+  LlmCompletionFn,
+  ProposeOptions,
+  ProposeResult,
+} from './propose.js';
+export { findRelated, parseProposedUnits, propose } from './propose.js';
+// Provenance
+export type {
+  ProposalStatus,
+  Provenance,
+  ProvenanceOrigin,
+} from './provenance.js';
+export {
+  createExtractedProvenance,
+  createFileProvenance,
+  createHumanProvenance,
+  createSystemProposedProvenance,
+} from './provenance.js';
+// Resolver
+export type {
+  EnforcementOverride,
+  OverridesFile,
+  ResolveOptions,
+} from './resolver.js';
+export {
+  filterByAttributes,
+  filterByDomain,
+  filterByEnforcement,
+  filterBySystem,
+  groupUnitsBy,
+  resolveForBrand,
+  resolveUnits,
+} from './resolver.js';
 
 // Rules
 export type { MatchResult, OverrideConfig } from './rules/index.js';
-
-// Compliance
 export type {
-  ComplianceResult,
-  ComplianceViolation,
-  OutputFormat,
-  ReportOptions,
-} from './compliance/index.js';
-export { checkCompliance, type CheckOptions } from './compliance/checker.js';
-export { formatReport } from './compliance/report.js';
-
-// Eval
+  Brand,
+  BrandEnforcementOverride,
+  CreateBrand,
+  CreateBrandEnforcementOverride,
+  CreateKnowledgeUnit,
+  Domain,
+  KnowledgeFrontmatter,
+  KnowledgeUnit,
+  KnowledgeUnitWithEmbedding,
+  UpdateKnowledgeUnit,
+} from './schema/index.js';
+// Search (BM25 implementation)
 export {
-  loadGoldenPrompts,
-  evaluatePrompt,
-  runEval,
-  type GoldenPrompt,
-  type EvalResult,
-  type EvalSummary,
-} from './eval/index.js';
+  BM25Index,
+  type BM25Options,
+  BM25SearchAdapter,
+  tokenize,
+} from './search/index.js';
+// Serve (MCP server)
+export { type ServeOptions, serveMcp } from './serve/index.js';

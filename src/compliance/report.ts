@@ -33,16 +33,12 @@ function formatMarkdown(
     result.violations.length > 0
       ? `${result.violations.length} violation(s)`
       : null,
-    result.warnings.length > 0
-      ? `${result.warnings.length} warning(s)`
-      : null,
+    result.warnings.length > 0 ? `${result.warnings.length} warning(s)` : null,
   ]
     .filter(Boolean)
     .join(', ');
 
-  lines.push(
-    `## Compliance Check: ${counts || 'no issues found'}`,
-  );
+  lines.push(`## Compliance Check: ${counts || 'no issues found'}`);
   lines.push('');
 
   if (result.violations.length > 0) {

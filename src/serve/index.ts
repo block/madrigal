@@ -1,1 +1,1 @@
-export { serveMcp, type ServeOptions } from './mcp-server.js';
+export { type ServeOptions, serveMcp } from './mcp-server.js';

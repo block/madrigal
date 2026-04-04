@@ -1,11 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { BM25Index, tokenize } from '../search/bm25.js';
-import { BM25SearchAdapter } from '../search/adapter.js';
+import { describe, expect, it } from 'vitest';
+import type { Enforcement } from '../enforcement.js';
 import { findRelated } from '../propose.js';
 import type { KnowledgeUnit } from '../schema/index.js';
-import type { Enforcement } from '../enforcement.js';
+import { BM25SearchAdapter } from '../search/adapter.js';
+import { BM25Index, tokenize } from '../search/bm25.js';
 
-function makeUnit(overrides: Partial<KnowledgeUnit> & { id: string; title: string }): KnowledgeUnit {
+function makeUnit(
+  overrides: Partial<KnowledgeUnit> & { id: string; title: string },
+): KnowledgeUnit {
   return {
     body: '',
     domain: 'content',
@@ -26,7 +28,10 @@ describe('tokenize', () => {
   });
 
   it('filters stop words', () => {
-    expect(tokenize('this is a test of the system')).toEqual(['test', 'system']);
+    expect(tokenize('this is a test of the system')).toEqual([
+      'test',
+      'system',
+    ]);
   });
 
   it('filters tokens shorter than 2 characters', () => {
@@ -270,14 +275,18 @@ describe('BM25SearchAdapter', () => {
 
     it('filters by tags (all must match)', async () => {
       const adapter = new BM25SearchAdapter(units);
-      const results = await adapter.exactMatch({ tags: ['compliance', 'legal'] });
+      const results = await adapter.exactMatch({
+        tags: ['compliance', 'legal'],
+      });
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe('fdic');
     });
 
     it('ranks by BM25 when textQuery is provided', async () => {
       const adapter = new BM25SearchAdapter(units);
-      const results = await adapter.exactMatch({ textQuery: 'banking disclosure' });
+      const results = await adapter.exactMatch({
+        textQuery: 'banking disclosure',
+      });
       expect(results[0].id).toBe('fdic');
     });
 
@@ -310,7 +319,9 @@ describe('BM25SearchAdapter', () => {
       const results = await adapter.semanticSearch('color naming', {
         domain: 'design-system',
       });
-      expect(results.every((r) => r.unit.domain === 'design-system')).toBe(true);
+      expect(results.every((r) => r.unit.domain === 'design-system')).toBe(
+        true,
+      );
     });
 
     it('filters by minEnforcement', async () => {

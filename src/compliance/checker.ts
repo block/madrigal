@@ -1,9 +1,8 @@
-import type { KnowledgeUnit } from '../schema/index.js';
-import type { MadrigalConfig } from '../config.js';
 import type { SearchAdapter } from '../adapters/search.js';
-import type { ComplianceResult, ComplianceViolation } from './index.js';
-import { isEnforceable } from '../enforcement.js';
+import type { MadrigalConfig } from '../config.js';
 import { resolveForBrand } from '../resolver.js';
+import type { KnowledgeUnit } from '../schema/index.js';
+import type { ComplianceResult, ComplianceViolation } from './index.js';
 
 /**
  * Options for running a compliance check.

@@ -1,5 +1,5 @@
-import type { KnowledgeUnit } from '../schema/index.js';
 import type { MatchResult } from '../rules/index.js';
+import type { KnowledgeUnit } from '../schema/index.js';
 
 /**
  * Result of a compliance check.

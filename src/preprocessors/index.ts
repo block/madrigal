@@ -1,5 +1,5 @@
 export type { Preprocessor } from './registry.js';
 export {
-  PreprocessorRegistry,
   defaultPreprocessorRegistry,
+  PreprocessorRegistry,
 } from './registry.js';

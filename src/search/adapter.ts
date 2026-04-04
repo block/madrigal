@@ -1,11 +1,11 @@
-import type { KnowledgeUnit } from '../schema/index.js';
 import type {
-  SearchAdapter,
   RuleFilter,
-  SemanticSearchOptions,
   ScoredKnowledgeUnit,
+  SearchAdapter,
+  SemanticSearchOptions,
 } from '../adapters/search.js';
-import { ENFORCEMENT_ORDER, type Enforcement } from '../enforcement.js';
+import { ENFORCEMENT_ORDER } from '../enforcement.js';
+import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25Index } from './bm25.js';
 
 /**
@@ -106,7 +106,8 @@ export class BM25SearchAdapter implements SearchAdapter {
 
     // Apply minScore filter
     if (options?.minScore !== undefined) {
-      results = results.filter((r) => r.score >= options.minScore!);
+      const minScore = options.minScore;
+      results = results.filter((r) => r.score >= minScore);
     }
 
     // Apply limit
@@ -130,9 +131,7 @@ export class BM25SearchAdapter implements SearchAdapter {
         // null means global-only
         results = results.filter((u) => !u.brand);
       } else {
-        results = results.filter(
-          (u) => !u.brand || u.brand === filter.brand,
-        );
+        results = results.filter((u) => !u.brand || u.brand === filter.brand);
       }
     }
 
@@ -148,7 +147,7 @@ export class BM25SearchAdapter implements SearchAdapter {
     if (filter.tags && filter.tags.length > 0) {
       // All specified tags must be present on the unit
       results = results.filter((u) =>
-        filter.tags!.every((t) => u.tags.includes(t)),
+        filter.tags?.every((t) => u.tags.includes(t)),
       );
     }
 

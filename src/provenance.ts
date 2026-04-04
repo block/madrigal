@@ -55,7 +55,7 @@ export function createHumanProvenance(approvedBy?: string): Provenance {
 
 export function createSystemProposedProvenance(
   confidence: number,
-  evidence?: string[]
+  evidence?: string[],
 ): Provenance {
   return {
     origin: 'system-proposed',
@@ -67,7 +67,7 @@ export function createSystemProposedProvenance(
 
 export function createExtractedProvenance(
   confidence: number,
-  evidence: string[]
+  evidence: string[],
 ): Provenance {
   return {
     origin: 'extracted',

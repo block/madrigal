@@ -8,16 +8,15 @@
  * Requires: @modelcontextprotocol/sdk and zod as peer dependencies.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
-import { build } from '../pipeline.js';
-import { resolveForBrand } from '../resolver.js';
-import { loadConfig } from '../config.js';
-import { loadKnowledge } from '../loader.js';
-import { skillMdFormat } from '../formats/skill-md.js';
-import { BM25SearchAdapter } from '../search/adapter.js';
-import { ENFORCEMENT_ORDER } from '../enforcement.js';
-import type { KnowledgeUnit } from '../schema/index.js';
+import { existsSync, readFileSync } from 'node:fs';
 import type { MadrigalConfig } from '../config.js';
+import { loadConfig } from '../config.js';
+import { ENFORCEMENT_ORDER, type Enforcement } from '../enforcement.js';
+import { skillMdFormat } from '../formats/skill-md.js';
+import { loadKnowledge } from '../loader.js';
+import { resolveForBrand } from '../resolver.js';
+import type { KnowledgeUnit } from '../schema/index.js';
+import { BM25SearchAdapter } from '../search/adapter.js';
 
 /**
  * Options for starting the MCP server.
@@ -64,7 +63,9 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   const { units, config } = await loadUnits(options, baseDir);
 
   if (units.length === 0) {
-    console.error('No knowledge units found. Run "madrigal build" first or check your config.');
+    console.error(
+      'No knowledge units found. Run "madrigal build" first or check your config.',
+    );
     process.exit(1);
   }
 
@@ -82,14 +83,20 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
     'search_knowledge',
     'Search the knowledge base by query text, tags, domain, enforcement, kind, or brand. Returns matching rules, guidelines, and patterns ranked by relevance.',
     {
-      query: z.string().optional().describe('Free text search across titles and body content'),
+      query: z
+        .string()
+        .optional()
+        .describe('Free text search across titles and body content'),
       domain: z.string().optional().describe('Filter by domain'),
       brand: z.string().optional().describe('Filter by brand (omit for all)'),
       enforcement: z
         .array(z.enum(['must', 'should', 'may', 'context', 'deprecated']))
         .optional()
         .describe('Filter by enforcement levels'),
-      kind: z.string().optional().describe('Filter by kind (e.g. rule, glossary, rubric)'),
+      kind: z
+        .string()
+        .optional()
+        .describe('Filter by kind (e.g. rule, glossary, rubric)'),
       tags: z.array(z.string()).optional().describe('Filter by tags'),
       limit: z.number().optional().describe('Max results (default: 10)'),
     },
@@ -116,7 +123,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         results = await search.exactMatch({
           domain,
           brand,
-          enforcement: enforcement as any,
+          enforcement: enforcement as Enforcement[] | undefined,
           kind,
           tags,
         });
@@ -124,15 +131,30 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       }
 
       if (results.length === 0) {
-        return { content: [{ type: 'text' as const, text: 'No matching knowledge units found.' }] };
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: 'No matching knowledge units found.',
+            },
+          ],
+        };
       }
 
       const text = results
-        .map((u) => `### ${u.title} [${u.enforcement.toUpperCase()}]\n\nTags: ${u.tags.join(', ')}\n\n${u.body}`)
+        .map(
+          (u) =>
+            `### ${u.title} [${u.enforcement.toUpperCase()}]\n\nTags: ${u.tags.join(', ')}\n\n${u.body}`,
+        )
         .join('\n\n---\n\n');
 
       return {
-        content: [{ type: 'text' as const, text: `Found ${results.length} result(s):\n\n${text}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `Found ${results.length} result(s):\n\n${text}`,
+          },
+        ],
       };
     },
   );
@@ -148,10 +170,12 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       const unit = units.find((u) => u.id === id);
       if (!unit) {
         return {
-          content: [{
-            type: 'text' as const,
-            text: `No knowledge unit found with ID "${id}". Available IDs: ${units.map((u) => u.id).join(', ')}`,
-          }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `No knowledge unit found with ID "${id}". Available IDs: ${units.map((u) => u.id).join(', ')}`,
+            },
+          ],
         };
       }
 
@@ -164,10 +188,17 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         unit.brand ? `**Brand:** ${unit.brand}` : null,
         unit.system ? `**System:** ${unit.system}` : null,
         `**Origin:** ${unit.provenance.origin} (confidence: ${unit.provenance.confidence})`,
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       return {
-        content: [{ type: 'text' as const, text: `# ${unit.title}\n\n${meta}\n\n---\n\n${unit.body}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `# ${unit.title}\n\n${meta}\n\n---\n\n${unit.body}`,
+          },
+        ],
       };
     },
   );
@@ -187,8 +218,10 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
     async ({ domain, brand, enforcement }) => {
       let filtered = [...units];
       if (domain) filtered = filtered.filter((u) => u.domain === domain);
-      if (brand) filtered = filtered.filter((u) => !u.brand || u.brand === brand);
-      if (enforcement) filtered = filtered.filter((u) => u.enforcement === enforcement);
+      if (brand)
+        filtered = filtered.filter((u) => !u.brand || u.brand === brand);
+      if (enforcement)
+        filtered = filtered.filter((u) => u.enforcement === enforcement);
 
       filtered.sort(
         (a, b) =>
@@ -197,11 +230,19 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       );
 
       const text = filtered
-        .map((u) => `- **${u.id}** [${u.enforcement.toUpperCase()}]: ${u.title} (${u.tags.join(', ')})`)
+        .map(
+          (u) =>
+            `- **${u.id}** [${u.enforcement.toUpperCase()}]: ${u.title} (${u.tags.join(', ')})`,
+        )
         .join('\n');
 
       return {
-        content: [{ type: 'text' as const, text: `${filtered.length} knowledge unit(s):\n\n${text}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `${filtered.length} knowledge unit(s):\n\n${text}`,
+          },
+        ],
       };
     },
   );
@@ -216,7 +257,12 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
     async ({ brand }) => {
       if (!config) {
         return {
-          content: [{ type: 'text' as const, text: 'Config not available — serve was started from a bundle without config context.' }],
+          content: [
+            {
+              type: 'text' as const,
+              text: 'Config not available — serve was started from a bundle without config context.',
+            },
+          ],
         };
       }
 
@@ -224,10 +270,12 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       if (resolved.length === 0) {
         const brands = Object.keys(config.brands);
         return {
-          content: [{
-            type: 'text' as const,
-            text: `No rules found for brand "${brand}". Available brands: ${brands.join(', ')}`,
-          }],
+          content: [
+            {
+              type: 'text' as const,
+              text: `No rules found for brand "${brand}". Available brands: ${brands.join(', ')}`,
+            },
+          ],
         };
       }
 
@@ -247,7 +295,12 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
     'Review a piece of content against the knowledge base. Finds applicable rules by content similarity and presents them for compliance review.',
     {
       content: z.string().describe('The content text to review'),
-      context: z.string().optional().describe('Where this content appears (e.g. "error message", "button label")'),
+      context: z
+        .string()
+        .optional()
+        .describe(
+          'Where this content appears (e.g. "error message", "button label")',
+        ),
       brand: z.string().optional().describe('Brand context'),
     },
     async ({ content: contentText, context, brand }) => {
@@ -261,15 +314,20 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
 
       if (scored.length === 0) {
         return {
-          content: [{
-            type: 'text' as const,
-            text: 'No applicable rules found for this content.',
-          }],
+          content: [
+            {
+              type: 'text' as const,
+              text: 'No applicable rules found for this content.',
+            },
+          ],
         };
       }
 
       const rulesText = scored
-        .map((r) => `### ${r.unit.title} [${r.unit.enforcement.toUpperCase()}] (relevance: ${r.score})\n\n${r.unit.body}`)
+        .map(
+          (r) =>
+            `### ${r.unit.title} [${r.unit.enforcement.toUpperCase()}] (relevance: ${r.score})\n\n${r.unit.body}`,
+        )
         .join('\n\n---\n\n');
 
       const prompt = `Review this content against the design rules below.
