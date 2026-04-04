@@ -1,18 +1,19 @@
+import type { PCABasis } from './math.js';
 import {
-  findMedoid,
   cosineDistancesToRow,
+  fibonacciSphere,
+  findMedoid,
+  kmeans,
+  normalize,
   pca,
   pcaWithBasis,
-  kmeans,
-  fibonacciSphere,
-  normalize,
 } from './math.js';
-import type { PCABasis } from './math.js';
 
 /** Centralized layout: all nodes radiate from the embedding medoid. */
-export function computeCentralized(
-  embeddings: number[][],
-): { positions: [number, number, number][]; medoidIdx: number } {
+export function computeCentralized(embeddings: number[][]): {
+  positions: [number, number, number][];
+  medoidIdx: number;
+} {
   const n = embeddings.length;
   const medoidIdx = findMedoid(embeddings);
 
@@ -21,16 +22,24 @@ export function computeCentralized(
   const center = pcaCoords[medoidIdx];
   const relative = pcaCoords.map((p) => p.map((v, d) => v - center[d]));
 
-  const rPca = relative.map((r) => Math.sqrt(r.reduce((s, v) => s + v * v, 0)) + 1e-9);
-  const theta = relative.map((r, i) => Math.acos(Math.max(-1, Math.min(1, r[2] / rPca[i]))));
+  const rPca = relative.map(
+    (r) => Math.sqrt(r.reduce((s, v) => s + v * v, 0)) + 1e-9,
+  );
+  const theta = relative.map((r, i) =>
+    Math.acos(Math.max(-1, Math.min(1, r[2] / rPca[i]))),
+  );
   const phi = relative.map((r) => Math.atan2(r[1], r[0]));
 
   const distsFromMedoid = cosineDistancesToRow(embeddings, medoidIdx);
   const maxDist = Math.max(...distsFromMedoid) + 1e-9;
   const radii = distsFromMedoid.map((d) => d / maxDist);
 
-  const x = normalize(radii.map((r, i) => r * Math.sin(theta[i]) * Math.cos(phi[i])));
-  const y = normalize(radii.map((r, i) => r * Math.sin(theta[i]) * Math.sin(phi[i])));
+  const x = normalize(
+    radii.map((r, i) => r * Math.sin(theta[i]) * Math.cos(phi[i])),
+  );
+  const y = normalize(
+    radii.map((r, i) => r * Math.sin(theta[i]) * Math.sin(phi[i])),
+  );
   const z = normalize(radii.map((r, i) => r * Math.cos(theta[i])));
 
   const positions: [number, number, number][] = [];
@@ -57,10 +66,15 @@ export function computeDecentralized(
   );
 
   const orbitRadius = 0.25;
-  const rawPositions: [number, number, number][] = Array.from({ length: n }, () => [0, 0, 0]);
+  const rawPositions: [number, number, number][] = Array.from(
+    { length: n },
+    () => [0, 0, 0],
+  );
 
   for (let c = 0; c < k; c++) {
-    const indices = labels.map((l, i) => (l === c ? i : -1)).filter((i) => i >= 0);
+    const indices = labels
+      .map((l, i) => (l === c ? i : -1))
+      .filter((i) => i >= 0);
     const nIn = indices.length;
 
     if (nIn === 0) continue;
@@ -68,8 +82,16 @@ export function computeDecentralized(
       rawPositions[indices[0]] = [...hubPositions[c]];
     } else if (nIn === 2) {
       const offset = orbitRadius * 0.3;
-      rawPositions[indices[0]] = [hubPositions[c][0] - offset, hubPositions[c][1], hubPositions[c][2]];
-      rawPositions[indices[1]] = [hubPositions[c][0] + offset, hubPositions[c][1], hubPositions[c][2]];
+      rawPositions[indices[0]] = [
+        hubPositions[c][0] - offset,
+        hubPositions[c][1],
+        hubPositions[c][2],
+      ];
+      rawPositions[indices[1]] = [
+        hubPositions[c][0] + offset,
+        hubPositions[c][1],
+        hubPositions[c][2],
+      ];
     } else {
       const clusterData = indices.map((i) => embeddings[i]);
       const localPca = pca(clusterData, 3);
@@ -95,9 +117,7 @@ export function computeDecentralized(
 }
 
 /** Distributed layout: PCA-3D projection (lightweight fallback for UMAP). */
-export function computeDistributed(
-  embeddings: number[][],
-): {
+export function computeDistributed(embeddings: number[][]): {
   positions: [number, number, number][];
   pcaBasis: PCABasis;
   normRanges: { min: [number, number, number]; max: [number, number, number] };
@@ -113,11 +133,23 @@ export function computeDistributed(
   const zs = normalize(rawZ);
 
   const normRanges = {
-    min: [Math.min(...rawX), Math.min(...rawY), Math.min(...rawZ)] as [number, number, number],
-    max: [Math.max(...rawX), Math.max(...rawY), Math.max(...rawZ)] as [number, number, number],
+    min: [Math.min(...rawX), Math.min(...rawY), Math.min(...rawZ)] as [
+      number,
+      number,
+      number,
+    ],
+    max: [Math.max(...rawX), Math.max(...rawY), Math.max(...rawZ)] as [
+      number,
+      number,
+      number,
+    ],
   };
 
-  const positions: [number, number, number][] = pcaCoords.map((_, i) => [xs[i], ys[i], zs[i]]);
+  const positions: [number, number, number][] = pcaCoords.map((_, i) => [
+    xs[i],
+    ys[i],
+    zs[i],
+  ]);
 
   return { positions, pcaBasis: basis, normRanges };
 }

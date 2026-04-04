@@ -8,7 +8,10 @@ export function createOpenAIProvider(opts: {
   dimensions?: number;
 }): EmbeddingProvider {
   const model = opts.model ?? 'text-embedding-3-small';
-  const baseUrl = (opts.baseUrl ?? 'https://api.openai.com/v1').replace(/\/$/, '');
+  const baseUrl = (opts.baseUrl ?? 'https://api.openai.com/v1').replace(
+    /\/$/,
+    '',
+  );
   const dimensions = opts.dimensions ?? 1536;
 
   return {
@@ -21,7 +24,7 @@ export function createOpenAIProvider(opts: {
         const res = await fetch(`${baseUrl}/embeddings`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${opts.apiKey}`,
+            Authorization: `Bearer ${opts.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ input: batch, model, dimensions }),
@@ -30,8 +33,10 @@ export function createOpenAIProvider(opts: {
           const err = await res.text();
           throw new Error(`Embedding API error (${res.status}): ${err}`);
         }
-        const json = await res.json() as { data: { embedding: number[] }[] };
-        results.push(...json.data.map((d: { embedding: number[] }) => d.embedding));
+        const json = (await res.json()) as { data: { embedding: number[] }[] };
+        results.push(
+          ...json.data.map((d: { embedding: number[] }) => d.embedding),
+        );
       }
       return results;
     },
@@ -54,7 +59,7 @@ export function createVoyageProvider(opts: {
         const res = await fetch('https://api.voyageai.com/v1/embeddings', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${opts.apiKey}`,
+            Authorization: `Bearer ${opts.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ input: batch, model }),
@@ -63,8 +68,10 @@ export function createVoyageProvider(opts: {
           const err = await res.text();
           throw new Error(`Voyage API error (${res.status}): ${err}`);
         }
-        const json = await res.json() as { data: { embedding: number[] }[] };
-        results.push(...json.data.map((d: { embedding: number[] }) => d.embedding));
+        const json = (await res.json()) as { data: { embedding: number[] }[] };
+        results.push(
+          ...json.data.map((d: { embedding: number[] }) => d.embedding),
+        );
       }
       return results;
     },

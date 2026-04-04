@@ -1,8 +1,16 @@
-import type { KnowledgeUnit } from '../../schema/index.js';
-import type { TopologyConfig, TopologyData, TopologyNode } from './types.js';
-import { computeCentralized, computeDecentralized, computeDistributed } from './layouts.js';
+import type { KnowledgeUnit } from '../schema/index.js';
+import {
+  fallbackClusterNames,
+  labelEdgesByLlm,
+  nameClustersByLlm,
+} from './labeler.js';
+import {
+  computeCentralized,
+  computeDecentralized,
+  computeDistributed,
+} from './layouts.js';
 import { buildKnnEdges } from './math.js';
-import { fallbackClusterNames, nameClustersByLlm, labelEdgesByLlm } from './labeler.js';
+import type { TopologyConfig, TopologyData, TopologyNode } from './types.js';
 
 const MAX_CHARS = 4000;
 
@@ -25,7 +33,9 @@ export async function generateTopology(
   } = config;
 
   if (units.length < 3) {
-    throw new Error(`Need at least 3 units to generate topology, got ${units.length}`);
+    throw new Error(
+      `Need at least 3 units to generate topology, got ${units.length}`,
+    );
   }
 
   // 1. Generate embeddings
@@ -42,10 +52,18 @@ export async function generateTopology(
   }
 
   // 2. Compute layouts
-  const { positions: centralizedPos, medoidIdx } = computeCentralized(embeddings);
-  const { positions: decentralizedPos, labels: clusterLabels, hubPositions } =
-    computeDecentralized(embeddings, Math.min(nClusters, units.length));
-  const { positions: distributedPos, pcaBasis, normRanges } = computeDistributed(embeddings);
+  const { positions: centralizedPos, medoidIdx } =
+    computeCentralized(embeddings);
+  const {
+    positions: decentralizedPos,
+    labels: clusterLabels,
+    hubPositions,
+  } = computeDecentralized(embeddings, Math.min(nClusters, units.length));
+  const {
+    positions: distributedPos,
+    pcaBasis,
+    normRanges,
+  } = computeDistributed(embeddings);
 
   // 3. Build edges
   const rawEdges = buildKnnEdges(embeddings, kNeighbors);
@@ -56,7 +74,8 @@ export async function generateTopology(
   const actualClusters = Math.min(nClusters, units.length);
 
   if (!skipLlm) {
-    const llmApiKey = process.env.MADRIGAL_LLM_API_KEY ?? process.env.MADRIGAL_API_KEY;
+    const llmApiKey =
+      process.env.MADRIGAL_LLM_API_KEY ?? process.env.MADRIGAL_API_KEY;
     const llmProvider = llmApiKey
       ? {
           apiKey: llmApiKey,
@@ -66,15 +85,26 @@ export async function generateTopology(
       : null;
 
     if (llmProvider) {
-      clusterNames = await nameClustersByLlm(units, clusterLabels, actualClusters, llmProvider);
+      clusterNames = await nameClustersByLlm(
+        units,
+        clusterLabels,
+        actualClusters,
+        llmProvider,
+      );
       edgeLabels = await labelEdgesByLlm(units, rawEdges, llmProvider);
     } else {
       clusterNames = fallbackClusterNames(units, clusterLabels, actualClusters);
-      edgeLabels = rawEdges.map(() => ({ label: 'relates to', reverseLabel: 'relates to' }));
+      edgeLabels = rawEdges.map(() => ({
+        label: 'relates to',
+        reverseLabel: 'relates to',
+      }));
     }
   } else {
     clusterNames = fallbackClusterNames(units, clusterLabels, actualClusters);
-    edgeLabels = rawEdges.map(() => ({ label: 'relates to', reverseLabel: 'relates to' }));
+    edgeLabels = rawEdges.map(() => ({
+      label: 'relates to',
+      reverseLabel: 'relates to',
+    }));
   }
 
   for (let c = 0; c < actualClusters; c++) {
@@ -92,9 +122,21 @@ export async function generateTopology(
     tags: unit.tags,
     excerpt: unit.body.slice(0, 200).replace(/\n/g, ' ').trim(),
     positions: {
-      centralized: [centralizedPos[i][0] * scale, centralizedPos[i][1] * scale, centralizedPos[i][2] * scale],
-      decentralized: [decentralizedPos[i][0] * scale, decentralizedPos[i][1] * scale, decentralizedPos[i][2] * scale],
-      distributed: [distributedPos[i][0] * scale, distributedPos[i][1] * scale, distributedPos[i][2] * scale],
+      centralized: [
+        centralizedPos[i][0] * scale,
+        centralizedPos[i][1] * scale,
+        centralizedPos[i][2] * scale,
+      ],
+      decentralized: [
+        decentralizedPos[i][0] * scale,
+        decentralizedPos[i][1] * scale,
+        decentralizedPos[i][2] * scale,
+      ],
+      distributed: [
+        distributedPos[i][0] * scale,
+        distributedPos[i][1] * scale,
+        distributedPos[i][2] * scale,
+      ],
     },
     cluster: clusterLabels[i],
     isMedoid: i === medoidIdx,
@@ -113,7 +155,11 @@ export async function generateTopology(
     id: c,
     name: clusterNames[c] ?? `Cluster ${c}`,
     position: (hubPositions[c]
-      ? [hubPositions[c][0] * scale, hubPositions[c][1] * scale, hubPositions[c][2] * scale]
+      ? [
+          hubPositions[c][0] * scale,
+          hubPositions[c][1] * scale,
+          hubPositions[c][2] * scale,
+        ]
       : [0, 0, 0]) as [number, number, number],
   }));
 
@@ -143,17 +189,79 @@ export async function generateTopology(
  */
 function buildPseudoEmbeddings(units: KnowledgeUnit[]): number[][] {
   const STOP_WORDS = new Set([
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-    'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
-    'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-    'could', 'should', 'may', 'might', 'shall', 'can', 'this', 'that',
-    'these', 'those', 'it', 'its', 'not', 'no', 'nor', 'so', 'if', 'then',
-    'than', 'as', 'up', 'out', 'about', 'into', 'through', 'during', 'each',
-    'all', 'both', 'such', 'when', 'where', 'how', 'what', 'which', 'who',
+    'the',
+    'a',
+    'an',
+    'and',
+    'or',
+    'but',
+    'in',
+    'on',
+    'at',
+    'to',
+    'for',
+    'of',
+    'with',
+    'by',
+    'from',
+    'is',
+    'are',
+    'was',
+    'were',
+    'be',
+    'been',
+    'being',
+    'have',
+    'has',
+    'had',
+    'do',
+    'does',
+    'did',
+    'will',
+    'would',
+    'could',
+    'should',
+    'may',
+    'might',
+    'shall',
+    'can',
+    'this',
+    'that',
+    'these',
+    'those',
+    'it',
+    'its',
+    'not',
+    'no',
+    'nor',
+    'so',
+    'if',
+    'then',
+    'than',
+    'as',
+    'up',
+    'out',
+    'about',
+    'into',
+    'through',
+    'during',
+    'each',
+    'all',
+    'both',
+    'such',
+    'when',
+    'where',
+    'how',
+    'what',
+    'which',
+    'who',
   ]);
 
   function tokenize(text: string): string[] {
-    return text.toLowerCase().split(/\W+/).filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
+    return text
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
   }
 
   const docFreqs = new Map<string, number>();
@@ -172,7 +280,7 @@ function buildPseudoEmbeddings(units: KnowledgeUnit[]): number[][] {
     .map(([term]) => term);
 
   const termIndex = new Map<string, number>();
-  terms.forEach((t, i) => termIndex.set(t, i));
+  for (let i = 0; i < terms.length; i++) termIndex.set(terms[i], i);
   const dim = terms.length || 1;
 
   return docTokens.map((tokens) => {
