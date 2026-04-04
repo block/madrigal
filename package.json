@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "A config-driven, pluggable knowledge compiler inspired by Style Dictionary",
   "type": "module",
+  "packageManager": "pnpm@10.12.4",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
