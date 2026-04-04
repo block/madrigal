@@ -1,4 +1,4 @@
-import type { KnowledgeUnit } from '../../schema/index.js';
+import type { KnowledgeUnit } from '../schema/index.js';
 
 type LlmProvider = {
   apiKey: string;
@@ -11,7 +11,10 @@ async function callLlm(
   prompt: string,
   maxTokens = 500,
 ): Promise<string | null> {
-  const baseUrl = (provider.baseUrl ?? 'https://api.anthropic.com').replace(/\/$/, '');
+  const baseUrl = (provider.baseUrl ?? 'https://api.anthropic.com').replace(
+    /\/$/,
+    '',
+  );
   const model = provider.model ?? 'claude-sonnet-4-6-20250514';
 
   // Try Anthropic-style API
@@ -30,7 +33,7 @@ async function callLlm(
       }),
     });
     if (res.ok) {
-      const json = await res.json() as { content: { text: string }[] };
+      const json = (await res.json()) as { content: { text: string }[] };
       return json.content[0]?.text ?? null;
     }
   } catch {
@@ -42,7 +45,7 @@ async function callLlm(
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${provider.apiKey}`,
+        Authorization: `Bearer ${provider.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -52,7 +55,9 @@ async function callLlm(
       }),
     });
     if (res.ok) {
-      const json = await res.json() as { choices: { message: { content: string } }[] };
+      const json = (await res.json()) as {
+        choices: { message: { content: string } }[];
+      };
       return json.choices[0]?.message?.content ?? null;
     }
   } catch {
@@ -91,7 +96,7 @@ CLUSTER 1: <name>
 
   if (text) {
     for (const match of text.matchAll(/CLUSTER\s+(\d+):\s*(.+)/g)) {
-      names[parseInt(match[1])] = match[2].trim().replace(/^\*+|\*+$/g, '');
+      names[parseInt(match[1], 10)] = match[2].trim().replace(/^\*+|\*+$/g, '');
     }
   }
 
@@ -130,7 +135,10 @@ PAIR 1: A->B: <verb phrase> | B->A: <verb phrase>
       let label = 'relates to';
       let reverseLabel = 'relates to';
       if (text) {
-        const pattern = new RegExp(`PAIR\\s+${idx}:.*?A->B:\\s*(.+?)\\s*\\|\\s*B->A:\\s*(.+?)$`, 'm');
+        const pattern = new RegExp(
+          `PAIR\\s+${idx}:.*?A->B:\\s*(.+?)\\s*\\|\\s*B->A:\\s*(.+?)$`,
+          'm',
+        );
         const match = text.match(pattern);
         if (match) {
           label = match[1].trim().replace(/\.$/, '');
@@ -158,9 +166,13 @@ export function fallbackClusterNames(
     if (domains.length > 0) {
       const counts = new Map<string, number>();
       for (const d of domains) counts.set(d, (counts.get(d) ?? 0) + 1);
-      let best = domains[0], bestCount = 0;
+      let best = domains[0],
+        bestCount = 0;
       for (const [d, count] of counts) {
-        if (count > bestCount) { best = d; bestCount = count; }
+        if (count > bestCount) {
+          best = d;
+          bestCount = count;
+        }
       }
       names[c] = best;
     } else {

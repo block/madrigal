@@ -61,6 +61,7 @@ export { defaultRegistry, FormatRegistry } from './formats/index.js';
 export { jsonBundleFormat } from './formats/json-bundle.js';
 export { meshDomainFormat } from './formats/mesh-domain.js';
 export { skillMdFormat } from './formats/skill-md.js';
+export { topologyJsonFormat } from './formats/topology-json.js';
 // Loader
 export type {
   LoadError,

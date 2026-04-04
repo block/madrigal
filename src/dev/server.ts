@@ -4,6 +4,7 @@
  * API routes + static file serving (or Vite proxy in dev mode).
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +15,8 @@ import { resolveForBrand } from '../resolver.js';
 import { build, buildPlatformByName } from '../pipeline.js';
 import { ENFORCEMENT_ORDER } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
-import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv, cosineSimilarity } from './topology/index.js';
-import type { TopologyData, EmbeddingProvider } from './topology/index.js';
+import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv, cosineSimilarity } from '../topology/index.js';
+import type { TopologyData, EmbeddingProvider } from '../topology/index.js';
 import { buildPrompt, parseProposedUnits, findRelated } from '../propose.js';
 import { checkCompliance } from '../compliance/checker.js';
 import { createCompletionFn } from './llm.js';
@@ -342,7 +343,17 @@ export function createApp(baseDir: string): Hono {
   });
 
   // --- Topology endpoints ---
+  // Try to load pre-built topology from build artifacts
   let cachedTopology: TopologyData | null = null;
+  const prebuiltPath = join(baseDir, 'publish', 'to-topology', 'knowledge.json');
+  if (existsSync(prebuiltPath)) {
+    try {
+      cachedTopology = JSON.parse(readFileSync(prebuiltPath, 'utf-8')) as TopologyData;
+      console.log(`  Loaded pre-built topology from ${prebuiltPath}`);
+    } catch {
+      // Ignore parse errors — will regenerate on demand
+    }
+  }
 
   app.get('/api/topology', (c) => {
     if (!cachedTopology) {

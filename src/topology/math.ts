@@ -1,6 +1,8 @@
 /** Cosine similarity between two vectors. */
 export function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     normA += a[i] * a[i];
@@ -35,10 +37,14 @@ export function findMedoid(embeddings: number[][]): number {
   }
   for (let d = 0; d < dim; d++) centroid[d] /= n;
 
-  let bestIdx = 0, bestDist = Infinity;
+  let bestIdx = 0,
+    bestDist = Infinity;
   for (let i = 0; i < n; i++) {
     const dist = cosineDistance(embeddings[i], centroid);
-    if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = i;
+    }
   }
   return bestIdx;
 }
@@ -201,20 +207,29 @@ export function kmeans(
     let rand = Math.random() * totalDist;
     for (let i = 0; i < n; i++) {
       rand -= dists[i];
-      if (rand <= 0) { centroids.push([...data[i]]); break; }
+      if (rand <= 0) {
+        centroids.push([...data[i]]);
+        break;
+      }
     }
-    if (centroids.length <= c) centroids.push([...data[Math.floor(Math.random() * n)]]);
+    if (centroids.length <= c)
+      centroids.push([...data[Math.floor(Math.random() * n)]]);
   }
 
   let labels = new Array(n).fill(0);
 
   for (let iter = 0; iter < maxIter; iter++) {
     const newLabels = data.map((point) => {
-      let best = 0, bestDist = Infinity;
+      let best = 0,
+        bestDist = Infinity;
       for (let c = 0; c < k; c++) {
         let d = 0;
-        for (let dd = 0; dd < dim; dd++) d += (point[dd] - centroids[c][dd]) ** 2;
-        if (d < bestDist) { bestDist = d; best = c; }
+        for (let dd = 0; dd < dim; dd++)
+          d += (point[dd] - centroids[c][dd]) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          best = c;
+        }
       }
       return best;
     });
@@ -226,7 +241,8 @@ export function kmeans(
       const members = data.filter((_, i) => labels[i] === c);
       if (members.length === 0) continue;
       for (let d = 0; d < dim; d++) {
-        centroids[c][d] = members.reduce((s, m) => s + m[d], 0) / members.length;
+        centroids[c][d] =
+          members.reduce((s, m) => s + m[d], 0) / members.length;
       }
     }
   }
@@ -239,7 +255,7 @@ export function fibonacciSphere(n: number): [number, number, number][] {
   const golden = (1 + Math.sqrt(5)) / 2;
   const points: [number, number, number][] = [];
   for (let i = 0; i < n; i++) {
-    const theta = Math.acos(1 - 2 * (i + 0.5) / n);
+    const theta = Math.acos(1 - (2 * (i + 0.5)) / n);
     const phi = (2 * Math.PI * i) / golden;
     points.push([
       Math.sin(theta) * Math.cos(phi),
@@ -290,5 +306,5 @@ export function normalize(arr: number[]): number[] {
   const mn = Math.min(...arr);
   const mx = Math.max(...arr);
   if (mx - mn < 1e-9) return arr.map(() => 0);
-  return arr.map((v) => 2 * (v - mn) / (mx - mn) - 1);
+  return arr.map((v) => (2 * (v - mn)) / (mx - mn) - 1);
 }
