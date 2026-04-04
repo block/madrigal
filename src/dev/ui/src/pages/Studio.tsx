@@ -67,7 +67,6 @@ export function Studio() {
   return (
     <>
       <header className="mb-8">
-        <p className="type-overline mb-4">Compose</p>
         <h1 className="type-display">Studio</h1>
         <p className="type-body text-text-muted mt-2">
           Test content against your intelligence layers. See which directives activate, how they resolve, and what gets compiled.

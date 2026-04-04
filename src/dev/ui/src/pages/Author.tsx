@@ -455,7 +455,6 @@ export function Author() {
   return (
     <>
       <header className="mb-8">
-        <p className="type-overline mb-4">Authoring</p>
         <h1 className="type-display">Author</h1>
       </header>
 

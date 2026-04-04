@@ -12,7 +12,9 @@ const links = [
 ] as const;
 
 function useTheme() {
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  );
   const toggle = () => {
     const next = !dark;
     setDark(next);
@@ -25,11 +27,15 @@ function useTheme() {
 function useValidationStatus() {
   const [status, setStatus] = useState<'ok' | 'warn' | 'error' | null>(null);
   useEffect(() => {
-    api.getValidation().then((v: ValidationResponse) => {
-      const hasErrors = v.loadErrors.length > 0 || !v.configValidation.valid;
-      const hasWarnings = v.loadWarnings.length > 0 || v.configValidation.warnings.length > 0;
-      setStatus(hasErrors ? 'error' : hasWarnings ? 'warn' : 'ok');
-    }).catch(() => {});
+    api
+      .getValidation()
+      .then((v: ValidationResponse) => {
+        const hasErrors = v.loadErrors.length > 0 || !v.configValidation.valid;
+        const hasWarnings =
+          v.loadWarnings.length > 0 || v.configValidation.warnings.length > 0;
+        setStatus(hasErrors ? 'error' : hasWarnings ? 'warn' : 'ok');
+      })
+      .catch(() => {});
   }, []);
   return status;
 }
@@ -45,9 +51,9 @@ export function Layout() {
   const validationStatus = useValidationStatus();
 
   return (
-    <div className="flex h-screen p-2 gap-2 bg-background-muted">
+    <div className="flex h-screen p-4 gap-2 bg-background-default">
       {/* Sidebar */}
-      <aside className="w-52 shrink-0 flex flex-col overflow-hidden bg-background-default rounded-card shadow-card border border-border-card">
+      <aside className="w-52 shrink-0 flex flex-col overflow-hidden bg-background-muted rounded-card border border-border-card">
         {/* Masthead */}
         <div className="px-5 pt-5 pb-4">
           <h1 className="text-[1.25rem] font-bold tracking-[-0.035em] leading-[0.95] text-text-default">
@@ -100,7 +106,7 @@ export function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden bg-background-default rounded-card shadow-card border border-border-card">
+      <main className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="px-10 py-10">
             <Outlet />
