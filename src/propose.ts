@@ -41,7 +41,7 @@ export interface ProposeResult {
   skipped: boolean;
 }
 
-interface ProposedUnit {
+export interface ProposedUnit {
   filename: string;
   title: string;
   domain: string;
@@ -86,7 +86,7 @@ export async function propose(options: ProposeOptions): Promise<ProposeResult[]>
   return results;
 }
 
-function buildPrompt(
+export function buildPrompt(
   options: ProposeOptions,
   config: MadrigalConfig,
   existingUnits: KnowledgeUnit[],

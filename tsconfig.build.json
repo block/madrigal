@@ -5,5 +5,5 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "exclude": ["node_modules", "dist", "examples", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "examples", "**/*.test.ts", "src/dev/ui"]
 }

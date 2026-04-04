@@ -74,6 +74,8 @@ async function main() {
       return runValidate();
     case 'propose':
       return runPropose();
+    case 'dev':
+      return runDev();
     case 'serve':
       return runServe();
     case 'check':
@@ -93,6 +95,7 @@ Commands:
   build       Compile knowledge units to all platforms
   validate    Check config and knowledge units for errors
   propose     Scaffold a new knowledge unit from rough input
+  dev         Start the web-based knowledge explorer
   serve       Start an MCP server over stdio
   check       Check content against knowledge base for compliance
   eval        Evaluate search quality against golden prompts
@@ -101,6 +104,7 @@ Options:
   build [--platform <name>] [--dry-run]
   validate
   propose [--domain <d>] [--brand <b>] [--enforcement <e>] [--batch] <input>
+  dev [--port <number>] [--open]
   serve [--bundle <path>]
   check [--brand <b>] [--domain <d>] [--format markdown|json|sarif] <input>
   eval [--golden-dir <path>]
@@ -324,6 +328,16 @@ async function runPropose() {
     console.error(`Propose failed: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
+}
+
+/**
+ * madrigal dev [--port <number>] [--open]
+ */
+async function runDev() {
+  const port = parseInt(parseFlag('--port') || '4567', 10);
+  const open = hasFlag('--open');
+  const { startDevServer } = await import('./dev/index.js');
+  await startDevServer({ baseDir: process.cwd(), port, open });
 }
 
 /**
