@@ -20,7 +20,9 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && cd src/dev/ui && npm run build",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & cd src/dev/ui && npm run dev",
+    "dev:server": "node --watch-path=dist dist/cli.js dev",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "check": "biome check .",
@@ -46,8 +48,10 @@
     }
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
     "fast-glob": "^3.3.2",
     "gray-matter": "^4.0.3",
+    "hono": "^4.6.0",
     "yaml": "^2.3.4"
   },
   "devDependencies": {

@@ -1,0 +1,118 @@
+import { NavLink, Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { api, type ValidationResponse } from '../api';
+
+const links = [
+  { to: '/', label: 'Layers', end: true },
+  { to: '/studio', label: 'Studio' },
+  { to: '/author', label: 'Author' },
+] as const;
+
+function useTheme() {
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  );
+  const toggle = () => {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle('dark', next);
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+  };
+  return { dark, toggle };
+}
+
+function useValidationStatus() {
+  const [status, setStatus] = useState<'ok' | 'warn' | 'error' | null>(null);
+  useEffect(() => {
+    api
+      .getValidation()
+      .then((v: ValidationResponse) => {
+        const hasErrors = v.loadErrors.length > 0 || !v.configValidation.valid;
+        const hasWarnings =
+          v.loadWarnings.length > 0 || v.configValidation.warnings.length > 0;
+        setStatus(hasErrors ? 'error' : hasWarnings ? 'warn' : 'ok');
+      })
+      .catch(() => {});
+  }, []);
+  return status;
+}
+
+const statusColors = {
+  ok: 'bg-[var(--enforcement-may-text)]',
+  warn: 'bg-[var(--enforcement-should-text)]',
+  error: 'bg-[var(--enforcement-must-text)]',
+};
+
+export function Layout() {
+  const { dark, toggle } = useTheme();
+  const validationStatus = useValidationStatus();
+
+  return (
+    <div className="flex h-screen p-4 gap-2 bg-background-default">
+      {/* Sidebar */}
+      <aside className="w-52 shrink-0 flex flex-col overflow-hidden bg-background-muted rounded-card border border-border-card">
+        {/* Masthead */}
+        <div className="px-5 pt-5 pb-4">
+          <h1 className="text-[1.25rem] font-bold tracking-[-0.035em] leading-[0.95] text-text-default">
+            madrigal
+          </h1>
+        </div>
+
+        <Separator className="mx-5" />
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
+          {links.map(({ to, label, ...rest }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={'end' in rest}
+              className={({ isActive }) =>
+                `block px-3 py-1.5 text-[0.8125rem] tracking-[-0.01em] rounded-card-sm transition-colors ${
+                  isActive
+                    ? 'font-semibold text-text-default bg-background-muted'
+                    : 'font-normal text-text-muted hover:text-text-default hover:bg-background-muted/50'
+                }`
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="type-overline text-text-faint">v0.1</span>
+            {validationStatus && (
+              <span
+                className={`inline-block w-1.5 h-1.5 rounded-full ${statusColors[validationStatus]}`}
+                title={`Validation: ${validationStatus}`}
+              />
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggle}
+            className="text-[10px] font-medium tracking-[0.1em] uppercase h-7 px-3"
+          >
+            {dark ? 'Light' : 'Dark'}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="px-10 py-10">
+            <Outlet />
+          </div>
+        </ScrollArea>
+      </main>
+    </div>
+  );
+}
