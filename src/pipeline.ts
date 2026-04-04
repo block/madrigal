@@ -1,17 +1,17 @@
 import {
   loadConfig,
-  validateConfig,
   type MadrigalConfig,
   type PlatformConfig,
+  validateConfig,
 } from './config.js';
-import { loadKnowledge, type LoadResult } from './loader.js';
-import { resolveForBrand, groupUnitsBy } from './resolver.js';
 import {
   defaultRegistry,
   type Format,
   type FormatOptions,
 } from './formats/index.js';
+import { type LoadResult, loadKnowledge } from './loader.js';
 import { defaultPreprocessorRegistry } from './preprocessors/index.js';
+import { groupUnitsBy, resolveForBrand } from './resolver.js';
 import type { KnowledgeUnit } from './schema/index.js';
 
 /**
@@ -84,7 +84,7 @@ export interface PipelineResult {
  * @returns Pipeline results
  */
 export async function build(
-  options: BuildOptions = {}
+  options: BuildOptions = {},
 ): Promise<PipelineResult> {
   const {
     configPath,
@@ -126,7 +126,7 @@ export async function build(
     };
   }
   configWarnings.push(
-    ...validation.warnings.map((w) => `${w.path}: ${w.message}`)
+    ...validation.warnings.map((w) => `${w.path}: ${w.message}`),
   );
 
   // 3. Load knowledge units
@@ -148,7 +148,7 @@ export async function build(
       units = await preprocessor.process(units, config);
     } catch (err) {
       configWarnings.push(
-        `Preprocessor "${preprocessor.name}" failed: ${err instanceof Error ? err.message : String(err)}`
+        `Preprocessor "${preprocessor.name}" failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -168,7 +168,7 @@ export async function build(
     const format = formatRegistry.get(platformConfig.format);
     if (!format) {
       configWarnings.push(
-        `Platform "${platformName}": unknown format "${platformConfig.format}"`
+        `Platform "${platformName}": unknown format "${platformConfig.format}"`,
       );
       continue;
     }
@@ -180,7 +180,7 @@ export async function build(
       platformConfig,
       format,
       config,
-      dryRun
+      dryRun,
     );
     results.push(...platformResults);
   }
@@ -204,7 +204,7 @@ async function buildPlatform(
   platformConfig: PlatformConfig,
   format: Format,
   config: MadrigalConfig,
-  dryRun: boolean
+  dryRun: boolean,
 ): Promise<BuildResult[]> {
   const results: BuildResult[] = [];
 
@@ -284,7 +284,7 @@ async function buildPlatform(
  */
 export async function buildPlatformByName(
   platformName: string,
-  options: Omit<BuildOptions, 'platform'> = {}
+  options: Omit<BuildOptions, 'platform'> = {},
 ): Promise<BuildResult[]> {
   const result = await build({ ...options, platform: platformName });
   return result.results;

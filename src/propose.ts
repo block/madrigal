@@ -1,12 +1,12 @@
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { loadConfig } from './config.js';
-import { loadKnowledge } from './loader.js';
-import { BM25Index } from './search/bm25.js';
-import type { KnowledgeUnit } from './schema/index.js';
 import type { MadrigalConfig } from './config.js';
+import { loadConfig } from './config.js';
 import type { Enforcement } from './enforcement.js';
+import { loadKnowledge } from './loader.js';
+import type { KnowledgeUnit } from './schema/index.js';
+import { BM25Index } from './search/bm25.js';
 
 /**
  * A function that sends a prompt to an LLM and returns the text response.
@@ -55,7 +55,9 @@ export interface ProposedUnit {
 /**
  * Propose one or more knowledge units from rough input.
  */
-export async function propose(options: ProposeOptions): Promise<ProposeResult[]> {
+export async function propose(
+  options: ProposeOptions,
+): Promise<ProposeResult[]> {
   const baseDir = options.baseDir || process.cwd();
 
   // Load repo context
@@ -95,7 +97,10 @@ export function buildPrompt(
   const brands = Object.keys(config.brands);
 
   const existingList = existingUnits
-    .map((u) => `- ${u.id}: "${u.title}" (domain: ${u.domain}, enforcement: ${u.enforcement})`)
+    .map(
+      (u) =>
+        `- ${u.id}: "${u.title}" (domain: ${u.domain}, enforcement: ${u.enforcement})`,
+    )
     .join('\n');
 
   // Pick 2 diverse examples from existing units
@@ -106,9 +111,16 @@ export function buildPrompt(
 
   const hints: string[] = [];
   if (options.domain) hints.push(`Domain hint: ${options.domain}`);
-  if (options.brand) hints.push(`Brand hint: ${options.brand} (place in brands/${options.brand}/ directory)`);
-  if (options.enforcement) hints.push(`Enforcement hint: ${options.enforcement}`);
-  if (!options.brand) hints.push('No brand specified — this should be a global rule (no brand field in frontmatter)');
+  if (options.brand)
+    hints.push(
+      `Brand hint: ${options.brand} (place in brands/${options.brand}/ directory)`,
+    );
+  if (options.enforcement)
+    hints.push(`Enforcement hint: ${options.enforcement}`);
+  if (!options.brand)
+    hints.push(
+      'No brand specified — this should be a global rule (no brand field in frontmatter)',
+    );
 
   const batchInstruction = options.batch
     ? `The input may contain multiple distinct guidelines. Propose a SEPARATE knowledge unit for each distinct concept. Output multiple <unit> blocks.`
@@ -186,8 +198,12 @@ function pickExamples(units: KnowledgeUnit[]): KnowledgeUnit[] {
   if (units.length <= 2) return units;
 
   // Pick one with do/don't examples and one without (for variety)
-  const withExamples = units.find((u) => u.body.includes("**Don't:**") || u.body.includes("**Do:**"));
-  const withoutExamples = units.find((u) => !u.body.includes("**Don't:**") && !u.body.includes("**Do:**"));
+  const withExamples = units.find(
+    (u) => u.body.includes("**Don't:**") || u.body.includes('**Do:**'),
+  );
+  const withoutExamples = units.find(
+    (u) => !u.body.includes("**Don't:**") && !u.body.includes('**Do:**'),
+  );
 
   const picked: KnowledgeUnit[] = [];
   if (withExamples) picked.push(withExamples);
@@ -215,9 +231,8 @@ function formatUnitAsFile(unit: KnowledgeUnit): string {
 export function parseProposedUnits(response: string): ProposedUnit[] {
   const units: ProposedUnit[] = [];
   const unitRegex = /<unit>([\s\S]*?)<\/unit>/g;
-  let match;
 
-  while ((match = unitRegex.exec(response)) !== null) {
+  for (const match of response.matchAll(unitRegex)) {
     const block = match[1];
 
     const filename = extractTag(block, 'filename')?.trim() || 'untitled.md';
@@ -234,11 +249,23 @@ export function parseProposedUnits(response: string): ProposedUnit[] {
     const enforcement = String(fm.enforcement || fm.severity || 'should');
     const tags = Array.isArray(fm.tags) ? fm.tags.map(String) : [];
 
-    units.push({ filename, title, domain, brand, system, enforcement, tags, body });
+    units.push({
+      filename,
+      title,
+      domain,
+      brand,
+      system,
+      enforcement,
+      tags,
+      body,
+    });
   }
 
   if (units.length === 0) {
-    throw new Error('Could not parse any knowledge units from the AI response. Raw response:\n' + response.slice(0, 500));
+    throw new Error(
+      'Could not parse any knowledge units from the AI response. Raw response:\n' +
+        response.slice(0, 500),
+    );
   }
 
   return units;
@@ -253,7 +280,7 @@ function extractTag(text: string, tag: string): string | undefined {
 function writeProposedUnit(
   unit: ProposedUnit,
   existingUnits: KnowledgeUnit[],
-  config: MadrigalConfig,
+  _config: MadrigalConfig,
   baseDir: string,
 ): ProposeResult {
   // Determine output directory
@@ -299,7 +326,7 @@ function writeProposedUnit(
   frontmatterLines.push('  confidence: 0.85');
   frontmatterLines.push('---');
 
-  const fileContent = frontmatterLines.join('\n') + '\n\n' + unit.body + '\n';
+  const fileContent = `${frontmatterLines.join('\n')}\n\n${unit.body}\n`;
 
   // Write
   mkdirSync(dir, { recursive: true });

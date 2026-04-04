@@ -1,8 +1,7 @@
-export type { StorageAdapter, QueryFilter } from './storage.js';
-
 export type {
-  SearchAdapter,
   RuleFilter,
-  SemanticSearchOptions,
   ScoredKnowledgeUnit,
+  SearchAdapter,
+  SemanticSearchOptions,
 } from './search.js';
+export type { QueryFilter, StorageAdapter } from './storage.js';

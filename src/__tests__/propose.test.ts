@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { parseProposedUnits, findRelated } from '../propose.js';
+import { describe, expect, it } from 'vitest';
+import { findRelated, parseProposedUnits } from '../propose.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 
-function makeUnit(overrides: Partial<KnowledgeUnit> & { id: string; title: string }): KnowledgeUnit {
+function makeUnit(
+  overrides: Partial<KnowledgeUnit> & { id: string; title: string },
+): KnowledgeUnit {
   return {
     body: 'test',
     domain: 'default',
@@ -158,14 +160,41 @@ tags:
 
 describe('findRelated', () => {
   const existing: KnowledgeUnit[] = [
-    makeUnit({ id: 'btn-copy', title: 'Button copy guidelines', domain: 'content', tags: ['buttons', 'copy', 'ui'] }),
-    makeUnit({ id: 'color-tokens', title: 'Color token naming', domain: 'visual', tags: ['tokens', 'color'] }),
-    makeUnit({ id: 'a11y-contrast', title: 'Color contrast ratios', domain: 'accessibility', tags: ['color', 'contrast', 'a11y'] }),
-    makeUnit({ id: 'icon-sizing', title: 'Icon sizing standards', domain: 'visual', tags: ['icons', 'sizing'] }),
+    makeUnit({
+      id: 'btn-copy',
+      title: 'Button copy guidelines',
+      domain: 'content',
+      tags: ['buttons', 'copy', 'ui'],
+    }),
+    makeUnit({
+      id: 'color-tokens',
+      title: 'Color token naming',
+      domain: 'visual',
+      tags: ['tokens', 'color'],
+    }),
+    makeUnit({
+      id: 'a11y-contrast',
+      title: 'Color contrast ratios',
+      domain: 'accessibility',
+      tags: ['color', 'contrast', 'a11y'],
+    }),
+    makeUnit({
+      id: 'icon-sizing',
+      title: 'Icon sizing standards',
+      domain: 'visual',
+      tags: ['icons', 'sizing'],
+    }),
   ];
 
   it('returns units with overlapping tags above threshold', () => {
-    const proposed = { filename: 'f.md', title: 'New rule', domain: 'content', enforcement: 'should', tags: ['buttons', 'copy'], body: '' };
+    const proposed = {
+      filename: 'f.md',
+      title: 'New rule',
+      domain: 'content',
+      enforcement: 'should',
+      tags: ['buttons', 'copy'],
+      body: '',
+    };
     const related = findRelated(proposed, existing);
     expect(related.length).toBeGreaterThan(0);
     expect(related[0].id).toBe('btn-copy');
@@ -174,7 +203,14 @@ describe('findRelated', () => {
 
   it('gives same-domain bonus', () => {
     // Two tags overlap + same domain should score higher than two tags overlap + different domain
-    const proposed = { filename: 'f.md', title: 'New visual rule', domain: 'visual', enforcement: 'should', tags: ['color', 'tokens'], body: '' };
+    const proposed = {
+      filename: 'f.md',
+      title: 'New visual rule',
+      domain: 'visual',
+      enforcement: 'should',
+      tags: ['color', 'tokens'],
+      body: '',
+    };
     const related = findRelated(proposed, existing);
     // color-tokens shares domain + 2 tags, a11y-contrast shares 1 tag different domain
     expect(related[0].id).toBe('color-tokens');
@@ -182,7 +218,14 @@ describe('findRelated', () => {
 
   it('returns fewer results for weakly related queries', () => {
     // "icons" tag matches icon-sizing, BM25 will find it but with lower score
-    const proposed = { filename: 'f.md', title: 'Something unrelated', domain: 'other', enforcement: 'may', tags: ['icons'], body: '' };
+    const proposed = {
+      filename: 'f.md',
+      title: 'Something unrelated',
+      domain: 'other',
+      enforcement: 'may',
+      tags: ['icons'],
+      body: '',
+    };
     const related = findRelated(proposed, existing);
     // With BM25, even weak matches return if score > 0 (tag overlap via tokenization)
     if (related.length > 0) {
@@ -191,25 +234,51 @@ describe('findRelated', () => {
   });
 
   it('finds related units by title and body content similarity', () => {
-    const proposed = { filename: 'f.md', title: 'Color contrast accessibility', domain: 'accessibility', enforcement: 'may', tags: [], body: '' };
+    const proposed = {
+      filename: 'f.md',
+      title: 'Color contrast accessibility',
+      domain: 'accessibility',
+      enforcement: 'may',
+      tags: [],
+      body: '',
+    };
     const related = findRelated(proposed, existing);
     // a11y-contrast has "color" and "contrast" in title — BM25 ranks it high
     const match = related.find((r) => r.id === 'a11y-contrast');
     expect(match).toBeDefined();
-    expect(match!.reason).toContain('content similarity');
+    expect(match?.reason).toContain('content similarity');
   });
 
   it('limits results to 5', () => {
     const manyUnits = Array.from({ length: 10 }, (_, i) =>
-      makeUnit({ id: `unit-${i}`, title: `Shared topic words here`, domain: 'content', tags: ['shared-tag-a', 'shared-tag-b'] }),
+      makeUnit({
+        id: `unit-${i}`,
+        title: `Shared topic words here`,
+        domain: 'content',
+        tags: ['shared-tag-a', 'shared-tag-b'],
+      }),
     );
-    const proposed = { filename: 'f.md', title: 'Shared topic words here', domain: 'content', enforcement: 'may', tags: ['shared-tag-a', 'shared-tag-b'], body: '' };
+    const proposed = {
+      filename: 'f.md',
+      title: 'Shared topic words here',
+      domain: 'content',
+      enforcement: 'may',
+      tags: ['shared-tag-a', 'shared-tag-b'],
+      body: '',
+    };
     const related = findRelated(proposed, manyUnits);
     expect(related.length).toBeLessThanOrEqual(5);
   });
 
   it('sorts by score descending', () => {
-    const proposed = { filename: 'f.md', title: 'Color token naming patterns', domain: 'visual', enforcement: 'may', tags: ['color', 'tokens', 'contrast'], body: '' };
+    const proposed = {
+      filename: 'f.md',
+      title: 'Color token naming patterns',
+      domain: 'visual',
+      enforcement: 'may',
+      tags: ['color', 'tokens', 'contrast'],
+      body: '',
+    };
     const related = findRelated(proposed, existing);
     // color-tokens: 2 tags + same domain + title overlap = highest
     // a11y-contrast: 2 tags + title overlap ("color") but only 1 word >3 chars shared = lower

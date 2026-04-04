@@ -1,9 +1,9 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { MadrigalConfig } from './config.js';
-import type { KnowledgeUnit } from './schema/index.js';
 import type { Enforcement } from './enforcement.js';
+import type { KnowledgeUnit } from './schema/index.js';
 
 /**
  * Options for resolving knowledge units.
@@ -128,7 +128,7 @@ export function resolveForBrand(options: ResolveOptions): KnowledgeUnit[] {
  */
 function mergeUnits(
   base: KnowledgeUnit,
-  overlay: KnowledgeUnit
+  overlay: KnowledgeUnit,
 ): KnowledgeUnit {
   return {
     ...base,
@@ -216,7 +216,7 @@ export function resolveUnits(options: ResolveOptions): KnowledgeUnit[] {
  */
 export function filterByAttributes(
   units: KnowledgeUnit[],
-  where: Record<string, string | string[]>
+  where: Record<string, string | string[]>,
 ): KnowledgeUnit[] {
   return units.filter((unit) => {
     for (const [key, filterValue] of Object.entries(where)) {
@@ -227,7 +227,8 @@ export function filterByAttributes(
         // Filter is an array — check overlap
         if (Array.isArray(attrValue)) {
           // Both arrays: any overlap
-          if (!filterValue.some((fv) => (attrValue as string[]).includes(fv))) return false;
+          if (!filterValue.some((fv) => (attrValue as string[]).includes(fv)))
+            return false;
         } else {
           // Attr is scalar, filter is array: check if scalar is in array
           if (!filterValue.includes(String(attrValue))) return false;
@@ -252,7 +253,7 @@ export function filterByAttributes(
  */
 export function groupUnitsBy(
   units: KnowledgeUnit[],
-  field: 'brand' | 'domain' | 'system'
+  field: 'brand' | 'domain' | 'system',
 ): Map<string, KnowledgeUnit[]> {
   const groups = new Map<string, KnowledgeUnit[]>();
 
@@ -274,7 +275,7 @@ export function groupUnitsBy(
  */
 export function filterByDomain(
   units: KnowledgeUnit[],
-  domain: string
+  domain: string,
 ): KnowledgeUnit[] {
   return units.filter((u) => u.domain === domain);
 }
@@ -284,7 +285,7 @@ export function filterByDomain(
  */
 export function filterByEnforcement(
   units: KnowledgeUnit[],
-  enforcement: Enforcement
+  enforcement: Enforcement,
 ): KnowledgeUnit[] {
   return units.filter((u) => u.enforcement === enforcement);
 }
@@ -294,7 +295,7 @@ export function filterByEnforcement(
  */
 export function filterBySystem(
   units: KnowledgeUnit[],
-  system: string
+  system: string,
 ): KnowledgeUnit[] {
   return units.filter((u) => u.system === system);
 }

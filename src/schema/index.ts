@@ -1,15 +1,14 @@
 export type {
-  Domain,
-  KnowledgeUnit,
-  KnowledgeFrontmatter,
-  CreateKnowledgeUnit,
-  UpdateKnowledgeUnit,
-  KnowledgeUnitWithEmbedding,
-} from './knowledge-unit.js';
-
-export type {
   Brand,
-  CreateBrand,
   BrandEnforcementOverride,
+  CreateBrand,
   CreateBrandEnforcementOverride,
 } from './brand-taxonomy.js';
+export type {
+  CreateKnowledgeUnit,
+  Domain,
+  KnowledgeFrontmatter,
+  KnowledgeUnit,
+  KnowledgeUnitWithEmbedding,
+  UpdateKnowledgeUnit,
+} from './knowledge-unit.js';

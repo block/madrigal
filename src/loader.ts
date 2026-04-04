@@ -4,13 +4,10 @@ import fg from 'fast-glob';
 import matter from 'gray-matter';
 import { parse as parseYaml } from 'yaml';
 import type { MadrigalConfig } from './config.js';
-import type {
-  KnowledgeUnit,
-  KnowledgeFrontmatter,
-} from './schema/index.js';
 import type { Enforcement } from './enforcement.js';
-import { createFileProvenance } from './provenance.js';
 import { parseEnforcement } from './enforcement.js';
+import { createFileProvenance } from './provenance.js';
+import type { KnowledgeFrontmatter, KnowledgeUnit } from './schema/index.js';
 
 /**
  * Options for loading knowledge units.
@@ -95,7 +92,7 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
           domainNames,
           kindNames,
           brandNames,
-          warnings
+          warnings,
         );
         units.push(...parsed);
       } else {
@@ -105,7 +102,7 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
           domainNames,
           kindNames,
           brandNames,
-          warnings
+          warnings,
         );
         if (unit) {
           units.push(unit);
@@ -132,7 +129,7 @@ function parseKnowledgeFile(
   domainNames: Set<string>,
   kindNames: Set<string>,
   brandNames: Set<string>,
-  warnings: LoadWarning[]
+  warnings: LoadWarning[],
 ): KnowledgeUnit | null {
   const content = readFileSync(filePath, 'utf-8');
   const { data, content: body } = matter(content);
@@ -196,7 +193,11 @@ function parseKnowledgeFile(
   }
 
   // Parse attributes
-  const attributes = (frontmatter as Record<string, unknown>).attributes as Record<string, unknown> || {};
+  const attributes =
+    ((frontmatter as Record<string, unknown>).attributes as Record<
+      string,
+      unknown
+    >) || {};
 
   // Build provenance
   const provenance = frontmatter.provenance
@@ -239,8 +240,18 @@ function generateIdFromFilename(filePath: string): string {
  * Everything else goes into attributes.
  */
 const KNOWN_YAML_KEYS = new Set([
-  'id', 'title', 'domain', 'kind', 'system', 'brand',
-  'tags', 'enforcement', 'severity', 'provenance', 'body', 'entries',
+  'id',
+  'title',
+  'domain',
+  'kind',
+  'system',
+  'brand',
+  'tags',
+  'enforcement',
+  'severity',
+  'provenance',
+  'body',
+  'entries',
 ]);
 
 /**
@@ -257,13 +268,16 @@ function parseKnowledgeYamlFile(
   domainNames: Set<string>,
   kindNames: Set<string>,
   brandNames: Set<string>,
-  warnings: LoadWarning[]
+  warnings: LoadWarning[],
 ): KnowledgeUnit[] {
   const content = readFileSync(filePath, 'utf-8');
   const parsed = parseYaml(content) as Record<string, unknown>;
 
   if (!parsed || typeof parsed !== 'object') {
-    warnings.push({ filePath, message: 'YAML file parsed to null or non-object' });
+    warnings.push({
+      filePath,
+      message: 'YAML file parsed to null or non-object',
+    });
     return [];
   }
 
@@ -271,12 +285,34 @@ function parseKnowledgeYamlFile(
   if (Array.isArray(entries)) {
     // Multi-unit mode: each entry becomes a unit, inheriting top-level defaults
     return entries.map((entry, index) =>
-      buildYamlUnit(filePath, baseDir, parsed, entry, index, domainNames, kindNames, brandNames, warnings)
+      buildYamlUnit(
+        filePath,
+        baseDir,
+        parsed,
+        entry,
+        index,
+        domainNames,
+        kindNames,
+        brandNames,
+        warnings,
+      ),
     );
   }
 
   // Single-unit mode
-  return [buildYamlUnit(filePath, baseDir, parsed, undefined, 0, domainNames, kindNames, brandNames, warnings)];
+  return [
+    buildYamlUnit(
+      filePath,
+      baseDir,
+      parsed,
+      undefined,
+      0,
+      domainNames,
+      kindNames,
+      brandNames,
+      warnings,
+    ),
+  ];
 }
 
 /**
@@ -291,22 +327,22 @@ function buildYamlUnit(
   domainNames: Set<string>,
   kindNames: Set<string>,
   brandNames: Set<string>,
-  warnings: LoadWarning[]
+  warnings: LoadWarning[],
 ): KnowledgeUnit {
   // Merge top-level defaults with entry overrides
   const merged = entry ? { ...topLevel, ...entry } : { ...topLevel };
 
   // Extract standard fields
   const parentId = String(topLevel.id || generateIdFromFilename(filePath));
-  const id = entry
-    ? String(entry.id || `${parentId}--${index}`)
-    : parentId;
+  const id = entry ? String(entry.id || `${parentId}--${index}`) : parentId;
   const title = String(merged.title || id);
   const domain = String(merged.domain || 'default');
   const kind = String(merged.kind || 'rule');
   const system = merged.system ? String(merged.system) : undefined;
   const brand = merged.brand ? String(merged.brand) : undefined;
-  const tags = Array.isArray(merged.tags) ? (merged.tags as unknown[]).map(String) : [];
+  const tags = Array.isArray(merged.tags)
+    ? (merged.tags as unknown[]).map(String)
+    : [];
 
   // Validate domain
   if (domainNames.size > 0 && !domainNames.has(domain)) {
@@ -337,7 +373,9 @@ function buildYamlUnit(
 
   // Parse enforcement
   let enforcement: Enforcement = 'may';
-  const rawEnforcement = (merged.enforcement || merged.severity) as string | undefined;
+  const rawEnforcement = (merged.enforcement || merged.severity) as
+    | string
+    | undefined;
   if (rawEnforcement) {
     const parsed = parseEnforcement(String(rawEnforcement));
     if (parsed) {
@@ -366,7 +404,9 @@ function buildYamlUnit(
   }
 
   // Build provenance
-  const rawProvenance = merged.provenance as Partial<import('./provenance.js').Provenance> | undefined;
+  const rawProvenance = merged.provenance as
+    | Partial<import('./provenance.js').Provenance>
+    | undefined;
   const provenance = rawProvenance
     ? { ...createFileProvenance(), ...rawProvenance }
     : createFileProvenance();
@@ -378,12 +418,27 @@ function buildYamlUnit(
   } else if (entry) {
     // For structured entries without explicit body, create a readable representation
     const bodyData = { ...entry };
-    for (const key of ['id', 'title', 'domain', 'kind', 'system', 'brand', 'tags', 'enforcement', 'severity', 'provenance', 'body']) {
+    for (const key of [
+      'id',
+      'title',
+      'domain',
+      'kind',
+      'system',
+      'brand',
+      'tags',
+      'enforcement',
+      'severity',
+      'provenance',
+      'body',
+    ]) {
       delete bodyData[key];
     }
     if (Object.keys(bodyData).length > 0) {
       body = Object.entries(bodyData)
-        .map(([k, v]) => `**${k}:** ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+        .map(
+          ([k, v]) =>
+            `**${k}:** ${Array.isArray(v) ? v.join(', ') : String(v)}`,
+        )
         .join('\n\n');
     }
   }
@@ -436,7 +491,7 @@ export function loadKnowledgeSync(options: LoadOptions): LoadResult {
           domainNames,
           kindNames,
           brandNames,
-          warnings
+          warnings,
         );
         units.push(...parsed);
       } else {
@@ -446,7 +501,7 @@ export function loadKnowledgeSync(options: LoadOptions): LoadResult {
           domainNames,
           kindNames,
           brandNames,
-          warnings
+          warnings,
         );
         if (unit) {
           units.push(unit);

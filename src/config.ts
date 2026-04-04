@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 /**
@@ -110,7 +110,7 @@ export function loadConfig(configPath?: string): MadrigalConfig {
     throw new Error(
       configPath
         ? `Config file not found: ${configPath}`
-        : `No config file found. Expected one of: ${DEFAULT_CONFIG_NAMES.join(', ')}`
+        : `No config file found. Expected one of: ${DEFAULT_CONFIG_NAMES.join(', ')}`,
     );
   }
 
@@ -119,7 +119,7 @@ export function loadConfig(configPath?: string): MadrigalConfig {
     // For JS configs, we'd need dynamic import (async)
     // For now, only YAML is synchronous
     throw new Error(
-      'JavaScript config files require async loading. Use loadConfigAsync() instead.'
+      'JavaScript config files require async loading. Use loadConfigAsync() instead.',
     );
   }
 
@@ -162,7 +162,7 @@ function normalizeConfig(raw: unknown, _baseDir: string): MadrigalConfig {
  */
 export function validateConfig(
   config: MadrigalConfig,
-  formatNames?: string[]
+  formatNames?: string[],
 ): ValidationResult {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];

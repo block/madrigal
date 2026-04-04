@@ -1,6 +1,6 @@
-import type { Format, FormatOptions } from './registry.js';
+import { compareEnforcement, isEnforceable } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
-import { isEnforceable, compareEnforcement } from '../enforcement.js';
+import type { Format, FormatOptions } from './registry.js';
 
 /**
  * AI Rules Markdown format.
@@ -35,7 +35,9 @@ export const aiRulesMdFormat: Format = {
     const enforceableUnits = units.filter((u) => isEnforceable(u.enforcement));
 
     // Sort by enforcement (must first)
-    enforceableUnits.sort((a, b) => compareEnforcement(a.enforcement, b.enforcement));
+    enforceableUnits.sort((a, b) =>
+      compareEnforcement(a.enforcement, b.enforcement),
+    );
 
     // Group by enforcement
     const musts = enforceableUnits.filter((u) => u.enforcement === 'must');
@@ -67,7 +69,7 @@ export const aiRulesMdFormat: Format = {
 
     // Add context rules in a collapsed section
     const contextUnits = units.filter(
-      (u) => u.enforcement === 'context' || u.enforcement === 'may'
+      (u) => u.enforcement === 'context' || u.enforcement === 'may',
     );
     if (contextUnits.length > 0) {
       lines.push('## Additional Context');

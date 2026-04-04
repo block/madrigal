@@ -1,2 +1,2 @@
-export { BM25Index, tokenize, type BM25Options } from './bm25.js';
 export { BM25SearchAdapter } from './adapter.js';
+export { BM25Index, type BM25Options, tokenize } from './bm25.js';

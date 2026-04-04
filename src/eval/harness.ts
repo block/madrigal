@@ -140,10 +140,7 @@ export async function evaluatePrompt(
       }
 
       // Check rank threshold
-      if (
-        prompt.maxRank !== undefined &&
-        ranks[expectedId] > prompt.maxRank
-      ) {
+      if (prompt.maxRank !== undefined && ranks[expectedId] > prompt.maxRank) {
         failures.push(
           `${expectedId}: rank ${ranks[expectedId]} > maxRank ${prompt.maxRank}`,
         );
