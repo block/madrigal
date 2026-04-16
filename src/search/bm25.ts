@@ -119,13 +119,39 @@ const STOP_WORDS = new Set([
 ]);
 
 /**
- * Tokenize text into lowercase terms, filtering stop words and short tokens.
+ * Minimal English stemmer — strips common suffixes so that
+ * "errors" matches "error", "messages" matches "message", etc.
+ * Conservative: only applies when the resulting stem is >= 3 chars.
+ */
+function stem(word: string): string {
+  if (word.length <= 3) return word;
+  // ies → y (utilities → utility)
+  if (word.endsWith('ies') && word.length > 5) return word.slice(0, -3) + 'y';
+  // ness → (awareness → aware)
+  if (word.endsWith('ness') && word.length > 6) return word.slice(0, -4);
+  // ing → (writing → writ, but keep stem >= 3 chars)
+  if (word.endsWith('ing') && word.length > 5) {
+    const s = word.slice(0, -3);
+    if (s.length >= 3) return s;
+  }
+  // ed → (failed → fail)
+  if (word.endsWith('ed') && word.length > 4) return word.slice(0, -2);
+  // es → (errors → error, matches → match)
+  if (word.endsWith('es') && word.length > 4) return word.slice(0, -2);
+  // s → (buttons → button, guidelines → guideline)
+  if (word.endsWith('s') && word.length > 3) return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * Tokenize text into lowercase stems, filtering stop words and short tokens.
  */
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/\W+/)
-    .filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
+    .filter((t) => t.length >= 2 && !STOP_WORDS.has(t))
+    .map(stem);
 }
 
 /** Internal document representation for the BM25 index. */

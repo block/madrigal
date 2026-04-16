@@ -26,6 +26,8 @@ export interface ServeOptions {
   baseDir?: string;
   /** Path to a pre-built JSON bundle — skips build if provided */
   bundlePath?: string;
+  /** Paths to additional pre-built JSON bundles to merge with bundlePath */
+  bundlePaths?: string[];
   /** Path to madrigal config file */
   configPath?: string;
 }
@@ -141,18 +143,22 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         };
       }
 
-      const text = results
-        .map(
-          (u) =>
-            `### ${u.title} [${u.enforcement.toUpperCase()}]\n\nTags: ${u.tags.join(', ')}\n\n${u.body}`,
-        )
-        .join('\n\n---\n\n');
+      const lines = results.map((u) => {
+        const tags = u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : '';
+        // Include a short excerpt from the body (first 150 chars) for context
+        const excerpt = u.body
+          .replace(/^#+\s+/gm, '')
+          .replace(/\n+/g, ' ')
+          .trim()
+          .slice(0, 150);
+        return `- [${u.enforcement.toUpperCase()}] **${u.id}**${tags}\n  ${u.title}${excerpt ? `\n  _${excerpt}…_` : ''}`;
+      });
 
       return {
         content: [
           {
             type: 'text' as const,
-            text: `Found ${results.length} result(s):\n\n${text}`,
+            text: `Found ${results.length} result(s):\n\n${lines.join('\n\n')}\n\nUse get_knowledge_unit(id) to read the full content of any result.`,
           },
         ],
       };
@@ -250,42 +256,50 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   // --- Tool: get_brand_rules ---
   server.tool(
     'get_brand_rules',
-    'Get all design knowledge rules for a specific brand, with brand-specific enforcement overrides applied. Returns compiled skill-md output.',
+    'List all knowledge units for a specific brand, sorted by enforcement. Returns an index of IDs, titles, and enforcement levels. Use get_knowledge_unit(id) to read a full unit.',
     {
       brand: z.string().describe('Brand name'),
     },
     async ({ brand }) => {
-      if (!config) {
+      // Filter to units for this brand (including shared/global units)
+      const brandUnits = units.filter((u) => !u.brand || u.brand === brand);
+
+      if (brandUnits.length === 0) {
+        const availableBrands = [
+          ...new Set(units.map((u) => u.brand).filter(Boolean)),
+        ];
         return {
           content: [
             {
               type: 'text' as const,
-              text: 'Config not available — serve was started from a bundle without config context.',
+              text: `No units found for brand "${brand}". Available brands: ${availableBrands.join(', ')}`,
             },
           ],
         };
       }
 
-      const resolved = resolveForBrand({ units, config, brand, baseDir });
-      if (resolved.length === 0) {
-        const brands = Object.keys(config.brands);
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `No rules found for brand "${brand}". Available brands: ${brands.join(', ')}`,
-            },
-          ],
-        };
-      }
+      // Sort by enforcement (must first), then title
+      const order: Record<string, number> = {
+        must: 0,
+        should: 1,
+        may: 2,
+        context: 3,
+        deprecated: 4,
+      };
+      brandUnits.sort(
+        (a, b) =>
+          (order[a.enforcement] ?? 9) - (order[b.enforcement] ?? 9) ||
+          a.title.localeCompare(b.title),
+      );
 
-      const output = await skillMdFormat.compile(resolved, {
-        platform: { format: 'skill-md' },
-        config,
-        brand,
-      });
+      const lines = brandUnits.map(
+        (u) =>
+          `- [${u.enforcement.toUpperCase()}] **${u.id}** — ${u.title}${u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : ''}`,
+      );
 
-      return { content: [{ type: 'text' as const, text: output }] };
+      const text = `${brandUnits.length} knowledge unit(s) for brand "${brand}":\n\n${lines.join('\n')}\n\nUse get_knowledge_unit(id) to read the full content of any unit.`;
+
+      return { content: [{ type: 'text' as const, text }] };
     },
   );
 
@@ -357,20 +371,30 @@ async function loadUnits(
   options: ServeOptions,
   baseDir: string,
 ): Promise<{ units: KnowledgeUnit[]; config: MadrigalConfig | null }> {
-  // Path 1: pre-built JSON bundle
-  if (options.bundlePath) {
-    const absPath = options.bundlePath.startsWith('/')
-      ? options.bundlePath
-      : `${baseDir}/${options.bundlePath}`;
+  // Path 1: pre-built JSON bundle(s)
+  const allPaths = [
+    ...(options.bundlePath ? [options.bundlePath] : []),
+    ...(options.bundlePaths ?? []),
+  ];
 
-    if (!existsSync(absPath)) {
-      console.error(`Bundle not found: ${absPath}`);
-      process.exit(1);
+  if (allPaths.length > 0) {
+    const allUnits: KnowledgeUnit[] = [];
+
+    for (const bundlePath of allPaths) {
+      const absPath = bundlePath.startsWith('/')
+        ? bundlePath
+        : `${baseDir}/${bundlePath}`;
+
+      if (!existsSync(absPath)) {
+        console.error(`Bundle not found: ${absPath}`);
+        process.exit(1);
+      }
+
+      const bundle = JSON.parse(readFileSync(absPath, 'utf-8')) as {
+        units?: KnowledgeUnit[];
+      };
+      allUnits.push(...(bundle.units ?? []));
     }
-
-    const bundle = JSON.parse(readFileSync(absPath, 'utf-8')) as {
-      units?: KnowledgeUnit[];
-    };
 
     // Try to load config for brand resolution (optional)
     let config: MadrigalConfig | null = null;
@@ -380,7 +404,7 @@ async function loadUnits(
       // Config not required when serving from bundle
     }
 
-    return { units: bundle.units ?? [], config };
+    return { units: allUnits, config };
   }
 
   // Path 2: load from source files via config

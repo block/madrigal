@@ -117,6 +117,20 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
     }
   }
 
+  // Detect duplicate IDs — silently taking the first would lose units in the BM25 index
+  const idSeen = new Map<string, string>(); // id → first unit title
+  for (const unit of units) {
+    const first = idSeen.get(unit.id);
+    if (first) {
+      warnings.push({
+        filePath: unit.id,
+        message: `Duplicate ID "${unit.id}" (also used by "${first}"). Add explicit id: frontmatter to disambiguate. The second unit will be silently dropped by the search index.`,
+      });
+    } else {
+      idSeen.set(unit.id, unit.title);
+    }
+  }
+
   return { units, errors, warnings };
 }
 
@@ -143,8 +157,10 @@ function parseKnowledgeFile(
     });
   }
 
-  // Generate ID from filename if not provided
-  const id = frontmatter.id || generateIdFromFilename(filePath);
+  // Generate ID from filename if not provided.
+  // Include brand prefix so cross-brand files with the same filename stay unique.
+  const id =
+    frontmatter.id || generateIdFromFilename(filePath, frontmatter.brand);
   const title = frontmatter.title || id;
 
   // Validate domain
@@ -225,14 +241,17 @@ function parseKnowledgeFile(
 
 /**
  * Generate a slug ID from a filename.
+ * When a brand is provided, prefixes the slug with `{brand}-` so that
+ * cross-brand files with the same filename (e.g. voice-principles.md in both
+ * `shared/` and `tidal/`) produce unique IDs.
  */
-function generateIdFromFilename(filePath: string): string {
+function generateIdFromFilename(filePath: string, brand?: string): string {
   const ext = extname(filePath);
-  const name = basename(filePath, ext);
-  return name
+  const name = basename(filePath, ext)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+  return brand ? `${brand}-${name}` : name;
 }
 
 /**
@@ -333,7 +352,10 @@ function buildYamlUnit(
   const merged = entry ? { ...topLevel, ...entry } : { ...topLevel };
 
   // Extract standard fields
-  const parentId = String(topLevel.id || generateIdFromFilename(filePath));
+  const topLevelBrand = topLevel.brand ? String(topLevel.brand) : undefined;
+  const parentId = String(
+    topLevel.id || generateIdFromFilename(filePath, topLevelBrand),
+  );
   const id = entry ? String(entry.id || `${parentId}--${index}`) : parentId;
   const title = String(merged.title || id);
   const domain = String(merged.domain || 'default');
