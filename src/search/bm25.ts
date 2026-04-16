@@ -126,7 +126,7 @@ const STOP_WORDS = new Set([
 function stem(word: string): string {
   if (word.length <= 3) return word;
   // ies → y (utilities → utility)
-  if (word.endsWith('ies') && word.length > 5) return word.slice(0, -3) + 'y';
+  if (word.endsWith('ies') && word.length > 5) return `${word.slice(0, -3)}y`;
   // ness → (awareness → aware)
   if (word.endsWith('ness') && word.length > 6) return word.slice(0, -4);
   // ing → (writing → writ, but keep stem >= 3 chars)

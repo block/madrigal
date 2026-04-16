@@ -12,9 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import type { MadrigalConfig } from '../config.js';
 import { loadConfig } from '../config.js';
 import { ENFORCEMENT_ORDER, type Enforcement } from '../enforcement.js';
-import { skillMdFormat } from '../formats/skill-md.js';
 import { loadKnowledge } from '../loader.js';
-import { resolveForBrand } from '../resolver.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25SearchAdapter } from '../search/adapter.js';
 
@@ -62,7 +60,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   const baseDir = options.baseDir ?? process.cwd();
 
   // Load units + config
-  const { units, config } = await loadUnits(options, baseDir);
+  const { units } = await loadUnits(options, baseDir);
 
   if (units.length === 0) {
     console.error(
