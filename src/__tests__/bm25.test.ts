@@ -35,7 +35,8 @@ describe('tokenize', () => {
   });
 
   it('filters tokens shorter than 2 characters', () => {
-    expect(tokenize('I am a b c testing')).toEqual(['testing']);
+    // 'testing' is stemmed to 'test' by the English stemmer
+    expect(tokenize('I am a b c testing')).toEqual(['test']);
   });
 
   it('handles empty input', () => {
