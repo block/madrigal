@@ -36,10 +36,14 @@
   },
   "license": "Apache-2.0",
   "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.27.0",
     "@modelcontextprotocol/sdk": ">=1.0.0",
     "zod": ">=3.0.0"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
     "@modelcontextprotocol/sdk": {
       "optional": true
     },
@@ -55,6 +59,7 @@
     "yaml": "^2.3.4"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@biomejs/biome": "^2.4.10",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@types/node": "^20.11.0",

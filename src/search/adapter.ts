@@ -8,6 +8,11 @@ import { ENFORCEMENT_ORDER } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25Index } from './bm25.js';
 
+// "shared" and "global" are sentinel values meaning always-include,
+// equivalent to a missing brand (null/undefined).
+const isGlobal = (b: string | undefined | null): boolean =>
+  !b || b === 'shared' || b === 'global';
+
 /**
  * SearchAdapter implementation backed by an in-memory BM25 index.
  *
@@ -73,7 +78,7 @@ export class BM25SearchAdapter implements SearchAdapter {
 
     if (options?.brand) {
       results = results.filter(
-        (r) => !r.unit.brand || r.unit.brand === options.brand,
+        (r) => isGlobal(r.unit.brand) || r.unit.brand === options.brand,
       );
     }
 
@@ -131,7 +136,9 @@ export class BM25SearchAdapter implements SearchAdapter {
         // null means global-only
         results = results.filter((u) => !u.brand);
       } else {
-        results = results.filter((u) => !u.brand || u.brand === filter.brand);
+        results = results.filter(
+          (u) => isGlobal(u.brand) || u.brand === filter.brand,
+        );
       }
     }
 

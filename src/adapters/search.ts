@@ -8,7 +8,11 @@ export interface RuleFilter {
   /** Filter by domain */
   domain?: Domain;
 
-  /** Filter by brand (use null for global rules only) */
+  /**
+   * Filter by brand (use null for global rules only).
+   * "shared" and "global" are treated as sentinels meaning always-include,
+   * equivalent to a missing brand (null/undefined).
+   */
   brand?: string | null;
 
   /** Filter by enforcement levels */
