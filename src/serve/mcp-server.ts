@@ -12,9 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import type { MadrigalConfig } from '../config.js';
 import { loadConfig } from '../config.js';
 import { ENFORCEMENT_ORDER, type Enforcement } from '../enforcement.js';
-import { skillMdFormat } from '../formats/skill-md.js';
 import { loadKnowledge } from '../loader.js';
-import { resolveForBrand } from '../resolver.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25SearchAdapter } from '../search/adapter.js';
 
@@ -26,8 +24,14 @@ export interface ServeOptions {
   baseDir?: string;
   /** Path to a pre-built JSON bundle — skips build if provided */
   bundlePath?: string;
+  /** Paths to additional pre-built JSON bundles to merge with bundlePath */
+  bundlePaths?: string[];
   /** Path to madrigal config file */
   configPath?: string;
+  /** Anthropic API key for review_content LLM synthesis (falls back to ANTHROPIC_API_KEY env var) */
+  anthropicApiKey?: string;
+  /** Claude model to use for review_content (default: claude-sonnet-4-6) */
+  model?: string;
 }
 
 /**
@@ -37,6 +41,14 @@ export interface ServeOptions {
  * creates a BM25 search index, and exposes tools for searching, querying,
  * and reviewing content against the knowledge base.
  */
+// "shared" and "global" are sentinel values meaning always-include,
+// equivalent to a missing brand (null/undefined).
+const isGlobal = (b: string | undefined | null): boolean =>
+  !b || b === 'shared' || b === 'global';
+
+const EXCERPT_CHARS = 2000;
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
+
 export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   // Dynamic imports for optional peer dependencies
   let McpServer: typeof import('@modelcontextprotocol/sdk/server/mcp.js').McpServer;
@@ -57,10 +69,25 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
     process.exit(1);
   }
 
+  // Optional Anthropic client for review_content synthesis
+  let anthropic: import('@anthropic-ai/sdk').Anthropic | null = null;
+  const apiKey = options.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY;
+  if (apiKey) {
+    try {
+      const { default: Anthropic } = await import('@anthropic-ai/sdk');
+      anthropic = new Anthropic({ apiKey });
+    } catch {
+      console.error(
+        'Warning: @anthropic-ai/sdk not installed. review_content will return a raw prompt.\n' +
+          'Install with: npm install @anthropic-ai/sdk',
+      );
+    }
+  }
+
   const baseDir = options.baseDir ?? process.cwd();
 
   // Load units + config
-  const { units, config } = await loadUnits(options, baseDir);
+  const { units } = await loadUnits(options, baseDir);
 
   if (units.length === 0) {
     console.error(
@@ -141,18 +168,22 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         };
       }
 
-      const text = results
-        .map(
-          (u) =>
-            `### ${u.title} [${u.enforcement.toUpperCase()}]\n\nTags: ${u.tags.join(', ')}\n\n${u.body}`,
-        )
-        .join('\n\n---\n\n');
+      const lines = results.map((u) => {
+        const tags = u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : '';
+        // Include a short excerpt from the body (first 150 chars) for context
+        const excerpt = u.body
+          .replace(/^#+\s+/gm, '')
+          .replace(/\n+/g, ' ')
+          .trim()
+          .slice(0, 150);
+        return `- [${u.enforcement.toUpperCase()}] **${u.id}**${tags}\n  ${u.title}${excerpt ? `\n  _${excerpt}…_` : ''}`;
+      });
 
       return {
         content: [
           {
             type: 'text' as const,
-            text: `Found ${results.length} result(s):\n\n${text}`,
+            text: `Found ${results.length} result(s):\n\n${lines.join('\n\n')}\n\nUse get_knowledge_unit(id) to read the full content of any result.`,
           },
         ],
       };
@@ -219,7 +250,9 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       let filtered = [...units];
       if (domain) filtered = filtered.filter((u) => u.domain === domain);
       if (brand)
-        filtered = filtered.filter((u) => !u.brand || u.brand === brand);
+        filtered = filtered.filter(
+          (u) => isGlobal(u.brand) || u.brand === brand,
+        );
       if (enforcement)
         filtered = filtered.filter((u) => u.enforcement === enforcement);
 
@@ -250,42 +283,52 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   // --- Tool: get_brand_rules ---
   server.tool(
     'get_brand_rules',
-    'Get all design knowledge rules for a specific brand, with brand-specific enforcement overrides applied. Returns compiled skill-md output.',
+    'List all knowledge units for a specific brand, sorted by enforcement. Returns an index of IDs, titles, and enforcement levels. Use get_knowledge_unit(id) to read a full unit.',
     {
       brand: z.string().describe('Brand name'),
     },
     async ({ brand }) => {
-      if (!config) {
+      // Filter to units for this brand (including shared/global units)
+      const brandUnits = units.filter(
+        (u) => isGlobal(u.brand) || u.brand === brand,
+      );
+
+      if (brandUnits.length === 0) {
+        const availableBrands = [
+          ...new Set(units.map((u) => u.brand).filter(Boolean)),
+        ];
         return {
           content: [
             {
               type: 'text' as const,
-              text: 'Config not available — serve was started from a bundle without config context.',
+              text: `No units found for brand "${brand}". Available brands: ${availableBrands.join(', ')}`,
             },
           ],
         };
       }
 
-      const resolved = resolveForBrand({ units, config, brand, baseDir });
-      if (resolved.length === 0) {
-        const brands = Object.keys(config.brands);
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `No rules found for brand "${brand}". Available brands: ${brands.join(', ')}`,
-            },
-          ],
-        };
-      }
+      // Sort by enforcement (must first), then title
+      const order: Record<string, number> = {
+        must: 0,
+        should: 1,
+        may: 2,
+        context: 3,
+        deprecated: 4,
+      };
+      brandUnits.sort(
+        (a, b) =>
+          (order[a.enforcement] ?? 9) - (order[b.enforcement] ?? 9) ||
+          a.title.localeCompare(b.title),
+      );
 
-      const output = await skillMdFormat.compile(resolved, {
-        platform: { format: 'skill-md' },
-        config,
-        brand,
-      });
+      const lines = brandUnits.map(
+        (u) =>
+          `- [${u.enforcement.toUpperCase()}] **${u.id}** — ${u.title}${u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : ''}`,
+      );
 
-      return { content: [{ type: 'text' as const, text: output }] };
+      const text = `${brandUnits.length} knowledge unit(s) for brand "${brand}":\n\n${lines.join('\n')}\n\nUse get_knowledge_unit(id) to read the full content of any unit.`;
+
+      return { content: [{ type: 'text' as const, text }] };
     },
   );
 
@@ -304,13 +347,13 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       brand: z.string().optional().describe('Brand context'),
     },
     async ({ content: contentText, context, brand }) => {
-      // Build search query from content + context
-      const query = context ? `${context} ${contentText}` : contentText;
+      // Prepend brand to query for natural BM25 weighting — brand is a relevance
+      // signal here, not a hard filter, so we search across all units and let
+      // the LLM determine cross-brand applicability.
+      const brandPrefix = brand ? `${brand} ` : '';
+      const query = `${brandPrefix}${context ? `${context} ` : ''}${contentText}`;
 
-      const scored = await search.semanticSearch(query, {
-        brand,
-        limit: 15,
-      });
+      const scored = await search.semanticSearch(query, { limit: 15 });
 
       if (scored.length === 0) {
         return {
@@ -324,17 +367,67 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       }
 
       const rulesText = scored
-        .map(
-          (r) =>
-            `### ${r.unit.title} [${r.unit.enforcement.toUpperCase()}] (relevance: ${r.score})\n\n${r.unit.body}`,
-        )
+        .map((r) => {
+          const brandTag = r.unit.brand ? ` [${r.unit.brand}]` : '';
+          const excerpt =
+            r.unit.body.length > EXCERPT_CHARS
+              ? `${r.unit.body.slice(0, EXCERPT_CHARS)}\n[…truncated]`
+              : r.unit.body;
+          return `### ${r.unit.title} [${r.unit.enforcement.toUpperCase()}]${brandTag}\n**ID:** ${r.unit.id}\n\n${excerpt}`;
+        })
         .join('\n\n---\n\n');
 
+      const brandLine = brand ? `\n**Brand context:** ${brand}` : '';
+      const contextLine = context ? `\n**Context:** ${context}` : '';
+
+      if (anthropic) {
+        const model = options.model ?? DEFAULT_MODEL;
+        const message = await anthropic.messages.create({
+          model,
+          max_tokens: 1024,
+          system: `You are a content reviewer for Block (the fintech company behind Cash App, Square, Afterpay, and other products). You review content against brand and product writing guidelines.
+
+The guidelines retrieved may come from different brands (Cash App, Square, shared, etc.). Use judgment to determine whether a guideline applies to the content being reviewed — a Cash App error message standard may still be relevant for another product if no product-specific standard exists.
+
+When reviewing content, you:
+1. Identify which rules apply to the content based on the guidelines provided
+2. State clearly whether the content follows or violates each applicable rule
+3. Note the source brand of each guideline when it differs from the content's brand
+4. Explain any violations concisely and suggest corrections
+5. Flag "must" violations — these are non-negotiable
+
+Format your response as:
+- A brief overall assessment (1–2 sentences)
+- A bulleted list of findings (rule name, PASS/FAIL/WARN/N/A, brief explanation)
+- If violations exist: specific correction suggestions`,
+          messages: [
+            {
+              role: 'user',
+              content: `Review this content against the guidelines below.
+
+**Content:** "${contentText}"${contextLine}${brandLine}
+
+**Guidelines retrieved (${scored.length}) — may include shared and cross-brand rules; apply judgment on relevance:**
+
+${rulesText}`,
+            },
+          ],
+        });
+
+        const responseText = (
+          message.content as Array<{ type: string; text?: string }>
+        )
+          .filter((b) => b.type === 'text')
+          .map((b) => b.text ?? '')
+          .join('');
+
+        return { content: [{ type: 'text' as const, text: responseText }] };
+      }
+
+      // Fallback when no Anthropic client is configured: return the raw prompt
       const prompt = `Review this content against the design rules below.
 
-**Content to review:** "${contentText}"
-${context ? `**Context:** ${context}` : ''}
-${brand ? `**Brand:** ${brand}` : ''}
+**Content to review:** "${contentText}"${contextLine}${brandLine}
 
 **Applicable rules:**
 
@@ -357,20 +450,30 @@ async function loadUnits(
   options: ServeOptions,
   baseDir: string,
 ): Promise<{ units: KnowledgeUnit[]; config: MadrigalConfig | null }> {
-  // Path 1: pre-built JSON bundle
-  if (options.bundlePath) {
-    const absPath = options.bundlePath.startsWith('/')
-      ? options.bundlePath
-      : `${baseDir}/${options.bundlePath}`;
+  // Path 1: pre-built JSON bundle(s)
+  const allPaths = [
+    ...(options.bundlePath ? [options.bundlePath] : []),
+    ...(options.bundlePaths ?? []),
+  ];
 
-    if (!existsSync(absPath)) {
-      console.error(`Bundle not found: ${absPath}`);
-      process.exit(1);
+  if (allPaths.length > 0) {
+    const allUnits: KnowledgeUnit[] = [];
+
+    for (const bundlePath of allPaths) {
+      const absPath = bundlePath.startsWith('/')
+        ? bundlePath
+        : `${baseDir}/${bundlePath}`;
+
+      if (!existsSync(absPath)) {
+        console.error(`Bundle not found: ${absPath}`);
+        process.exit(1);
+      }
+
+      const bundle = JSON.parse(readFileSync(absPath, 'utf-8')) as {
+        units?: KnowledgeUnit[];
+      };
+      allUnits.push(...(bundle.units ?? []));
     }
-
-    const bundle = JSON.parse(readFileSync(absPath, 'utf-8')) as {
-      units?: KnowledgeUnit[];
-    };
 
     // Try to load config for brand resolution (optional)
     let config: MadrigalConfig | null = null;
@@ -380,7 +483,7 @@ async function loadUnits(
       // Config not required when serving from bundle
     }
 
-    return { units: bundle.units ?? [], config };
+    return { units: allUnits, config };
   }
 
   // Path 2: load from source files via config

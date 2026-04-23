@@ -35,7 +35,8 @@ describe('tokenize', () => {
   });
 
   it('filters tokens shorter than 2 characters', () => {
-    expect(tokenize('I am a b c testing')).toEqual(['testing']);
+    // 'testing' is stemmed to 'test' by the English stemmer
+    expect(tokenize('I am a b c testing')).toEqual(['test']);
   });
 
   it('handles empty input', () => {
@@ -259,6 +260,20 @@ describe('BM25SearchAdapter', () => {
       expect(results.some((u) => u.id === 'buttons')).toBe(true); // global
     });
 
+    it('includes brand: "shared" units when filtering by a specific brand', async () => {
+      const withShared = [
+        ...units,
+        makeUnit({ id: 'shared-rule', title: 'Shared rule', brand: 'shared' }),
+        makeUnit({ id: 'global-rule', title: 'Global rule', brand: 'global' }),
+      ];
+      const adapter = new BM25SearchAdapter(withShared);
+      const results = await adapter.exactMatch({ brand: 'square' });
+      expect(results.some((u) => u.id === 'shared-rule')).toBe(true);
+      expect(results.some((u) => u.id === 'global-rule')).toBe(true);
+      expect(results.some((u) => u.id === 'tokens')).toBe(true); // square brand
+      expect(results.some((u) => u.id === 'buttons')).toBe(true); // no brand = global
+    });
+
     it('filters by enforcement', async () => {
       const adapter = new BM25SearchAdapter(units);
       const results = await adapter.exactMatch({ enforcement: ['must'] });
@@ -322,6 +337,31 @@ describe('BM25SearchAdapter', () => {
       expect(results.every((r) => r.unit.domain === 'design-system')).toBe(
         true,
       );
+    });
+
+    it('includes brand: "shared" and "global" units when filtering by a specific brand', async () => {
+      const withShared = [
+        ...units,
+        makeUnit({
+          id: 'shared-rule',
+          title: 'Shared copy rule',
+          brand: 'shared',
+          body: 'Use clear copy.',
+        }),
+        makeUnit({
+          id: 'global-rule',
+          title: 'Global copy rule',
+          brand: 'global',
+          body: 'Use clear copy.',
+        }),
+      ];
+      const adapter = new BM25SearchAdapter(withShared);
+      const results = await adapter.semanticSearch('copy guidelines', {
+        brand: 'square',
+      });
+      const ids = results.map((r) => r.unit.id);
+      expect(ids).toContain('shared-rule');
+      expect(ids).toContain('global-rule');
     });
 
     it('filters by minEnforcement', async () => {
