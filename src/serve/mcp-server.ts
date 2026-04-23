@@ -32,6 +32,8 @@ export interface ServeOptions {
   anthropicApiKey?: string;
   /** Claude model to use for review_content (default: claude-sonnet-4-6) */
   model?: string;
+  /** Custom system prompt for review_content LLM synthesis. Overrides the default generic prompt. */
+  reviewSystemPrompt?: string;
 }
 
 /**
@@ -385,9 +387,11 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         const message = await anthropic.messages.create({
           model,
           max_tokens: 1024,
-          system: `You are a content reviewer for Block (the fintech company behind Cash App, Square, Afterpay, and other products). You review content against brand and product writing guidelines.
+          system:
+            options.reviewSystemPrompt ??
+            `You are a content reviewer. You review content against brand and product guidelines.
 
-The guidelines retrieved may come from different brands (Cash App, Square, shared, etc.). Use judgment to determine whether a guideline applies to the content being reviewed — a Cash App error message standard may still be relevant for another product if no product-specific standard exists.
+The guidelines retrieved may come from different brands or sources. Use judgment to determine whether a guideline applies to the content being reviewed — a guideline from one brand may still be relevant for another if no brand-specific standard exists.
 
 When reviewing content, you:
 1. Identify which rules apply to the content based on the guidelines provided
