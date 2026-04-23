@@ -20,6 +20,8 @@ import { BM25SearchAdapter } from '../search/adapter.js';
  * Options for starting the MCP server.
  */
 export interface ServeOptions {
+  /** MCP server name shown to clients (default: 'madrigal') */
+  name?: string;
   /** Base directory (defaults to cwd) */
   baseDir?: string;
   /** Path to a pre-built JSON bundle — skips build if provided */
@@ -103,7 +105,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
 
   // Create MCP server
   const server = new McpServer({
-    name: 'madrigal',
+    name: options.name ?? 'madrigal',
     version: '0.1.0',
   });
 
