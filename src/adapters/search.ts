@@ -41,6 +41,9 @@ export interface SemanticSearchOptions {
   /** Filter by minimum weight level */
   minWeight?: string;
 
+  /** @deprecated Use minWeight instead */
+  minEnforcement?: string;
+
   /** Maximum number of results to return */
   limit?: number;
 

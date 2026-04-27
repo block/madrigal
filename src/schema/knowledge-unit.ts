@@ -66,6 +66,9 @@ export interface KnowledgeUnit {
    */
   weight: Weight;
 
+  /** @deprecated Use weight instead */
+  enforcement?: Weight;
+
   /** Open metadata for domain-specific attributes (surfaces, audiences, etc.) */
   attributes: Record<string, unknown>;
 

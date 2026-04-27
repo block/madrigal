@@ -81,8 +81,9 @@ export class BM25SearchAdapter implements SearchAdapter {
       );
     }
 
-    if (options?.minWeight) {
-      const minOrder = WEIGHT_ORDER[options.minWeight] ?? 99;
+    if (options?.minWeight || options?.minEnforcement) {
+      const minOrder =
+        WEIGHT_ORDER[options.minWeight ?? options.minEnforcement ?? ''] ?? 99;
       results = results.filter(
         (r) => (WEIGHT_ORDER[r.unit.weight] ?? 99) <= minOrder,
       );
