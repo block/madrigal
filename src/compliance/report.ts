@@ -84,7 +84,7 @@ function formatViolationMd(
   options: ReportOptions,
 ): string {
   const score = v.matchResult.confidence.toFixed(2);
-  let line = `- **${v.knowledgeUnit.title}** [${v.knowledgeUnit.enforcement.toUpperCase()}] — relevance: ${score}`;
+  let line = `- **${v.knowledgeUnit.title}** [${v.knowledgeUnit.weight.toUpperCase()}] — relevance: ${score}`;
 
   if (options.includeSuggestions) {
     // Include a brief excerpt from the rule body as guidance
@@ -114,7 +114,7 @@ function violationToJson(v: ComplianceViolation) {
   return {
     unitId: v.knowledgeUnit.id,
     title: v.knowledgeUnit.title,
-    enforcement: v.knowledgeUnit.enforcement,
+    weight: v.knowledgeUnit.weight,
     confidence: v.matchResult.confidence,
     message: v.message,
     tags: v.knowledgeUnit.tags,
@@ -143,17 +143,17 @@ function formatSarif(result: ComplianceResult): string {
     shortDescription: { text: v.knowledgeUnit.title },
     fullDescription: { text: v.knowledgeUnit.body.slice(0, 500) },
     defaultConfiguration: {
-      level: enforcementToSarifLevel(v.knowledgeUnit.enforcement),
+      level: weightToSarifLevel(v.knowledgeUnit.weight),
     },
     properties: {
       tags: v.knowledgeUnit.tags,
-      enforcement: v.knowledgeUnit.enforcement,
+      weight: v.knowledgeUnit.weight,
     },
   }));
 
   const results = allViolations.map((v) => ({
     ruleId: v.knowledgeUnit.id,
-    level: enforcementToSarifLevel(v.knowledgeUnit.enforcement),
+    level: weightToSarifLevel(v.knowledgeUnit.weight),
     message: { text: v.message },
     properties: {
       confidence: v.matchResult.confidence,
@@ -181,10 +181,8 @@ function formatSarif(result: ComplianceResult): string {
   return JSON.stringify(sarif, null, 2);
 }
 
-function enforcementToSarifLevel(
-  enforcement: string,
-): 'error' | 'warning' | 'note' {
-  switch (enforcement) {
+function weightToSarifLevel(weight: string): 'error' | 'warning' | 'note' {
+  switch (weight) {
     case 'must':
       return 'error';
     case 'should':

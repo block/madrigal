@@ -4,8 +4,8 @@ import type {
   SearchAdapter,
   SemanticSearchOptions,
 } from '../adapters/search.js';
-import { ENFORCEMENT_ORDER } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
+import { WEIGHT_ORDER } from '../weight.js';
 import { BM25Index } from './bm25.js';
 
 // "shared" and "global" are sentinel values meaning always-include,
@@ -31,7 +31,7 @@ export class BM25SearchAdapter implements SearchAdapter {
   /**
    * Exact-match filtering by metadata fields.
    * If textQuery is provided, results are ranked by BM25 score.
-   * Otherwise, results are sorted by enforcement (must first).
+   * Otherwise, results are sorted by weight (must first).
    */
   async exactMatch(filter: RuleFilter): Promise<KnowledgeUnit[]> {
     let results = this.applyFilters(this.units, filter);
@@ -42,11 +42,10 @@ export class BM25SearchAdapter implements SearchAdapter {
       const scored = filtered.search(filter.textQuery, results.length);
       results = scored.map((s) => s.unit);
     } else {
-      // Sort by enforcement: must first
+      // Sort by weight: must first
       results.sort(
         (a, b) =>
-          (ENFORCEMENT_ORDER[a.enforcement] ?? 99) -
-          (ENFORCEMENT_ORDER[b.enforcement] ?? 99),
+          (WEIGHT_ORDER[a.weight] ?? 99) - (WEIGHT_ORDER[b.weight] ?? 99),
       );
     }
 
@@ -82,18 +81,18 @@ export class BM25SearchAdapter implements SearchAdapter {
       );
     }
 
-    if (options?.minEnforcement) {
-      const minOrder = ENFORCEMENT_ORDER[options.minEnforcement] ?? 99;
+    if (options?.minWeight) {
+      const minOrder = WEIGHT_ORDER[options.minWeight] ?? 99;
       results = results.filter(
-        (r) => (ENFORCEMENT_ORDER[r.unit.enforcement] ?? 99) <= minOrder,
+        (r) => (WEIGHT_ORDER[r.unit.weight] ?? 99) <= minOrder,
       );
     }
 
-    // Apply enforcement boost: enforceable rules score slightly higher
+    // Apply weight boost: enforceable rules score slightly higher
     results = results.map((r) => {
       let boosted = r.score;
-      if (r.unit.enforcement === 'must') boosted *= 1.2;
-      else if (r.unit.enforcement === 'should') boosted *= 1.1;
+      if (r.unit.weight === 'must') boosted *= 1.2;
+      else if (r.unit.weight === 'should') boosted *= 1.1;
       return { unit: r.unit, score: boosted };
     });
 
@@ -142,9 +141,9 @@ export class BM25SearchAdapter implements SearchAdapter {
       }
     }
 
-    if (filter.enforcement && filter.enforcement.length > 0) {
-      const allowed = new Set<string>(filter.enforcement);
-      results = results.filter((u) => allowed.has(u.enforcement));
+    if (filter.weight && filter.weight.length > 0) {
+      const allowed = new Set<string>(filter.weight);
+      results = results.filter((u) => allowed.has(u.weight));
     }
 
     if (filter.kind) {

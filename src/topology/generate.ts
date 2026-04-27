@@ -117,7 +117,7 @@ export async function generateTopology(
     title: unit.title,
     domain: unit.domain,
     kind: unit.kind,
-    enforcement: unit.enforcement,
+    weight: unit.weight,
     brand: unit.brand,
     tags: unit.tags,
     excerpt: unit.body.slice(0, 200).replace(/\n/g, ' ').trim(),

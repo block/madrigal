@@ -11,10 +11,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { MadrigalConfig } from '../config.js';
 import { loadConfig } from '../config.js';
-import { ENFORCEMENT_ORDER, type Enforcement } from '../enforcement.js';
 import { loadKnowledge } from '../loader.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25SearchAdapter } from '../search/adapter.js';
+import { WEIGHT_ORDER } from '../weight.js';
 
 /**
  * Options for starting the MCP server.
@@ -112,7 +112,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   // --- Tool: search_knowledge ---
   server.tool(
     'search_knowledge',
-    'Search the knowledge base by query text, tags, domain, enforcement, kind, or brand. Returns matching rules, guidelines, and patterns ranked by relevance.',
+    'Search the knowledge base by query text, tags, domain, weight, kind, or brand. Returns matching rules, guidelines, and patterns ranked by relevance.',
     {
       query: z
         .string()
@@ -120,10 +120,10 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         .describe('Free text search across titles and body content'),
       domain: z.string().optional().describe('Filter by domain'),
       brand: z.string().optional().describe('Filter by brand (omit for all)'),
-      enforcement: z
+      weight: z
         .array(z.enum(['must', 'should', 'may', 'context', 'deprecated']))
         .optional()
-        .describe('Filter by enforcement levels'),
+        .describe('Filter by weight levels'),
       kind: z
         .string()
         .optional()
@@ -131,14 +131,14 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       tags: z.array(z.string()).optional().describe('Filter by tags'),
       limit: z.number().optional().describe('Max results (default: 10)'),
     },
-    async ({ query, domain, brand, enforcement, kind, tags, limit }) => {
+    async ({ query, domain, brand, weight, kind, tags, limit }) => {
       let results: KnowledgeUnit[];
 
       if (query) {
         const scored = await search.semanticSearch(query, {
           domain,
           brand,
-          minEnforcement: enforcement?.[enforcement.length - 1], // least strict as min
+          minWeight: weight?.[weight.length - 1], // least strict as min
           limit: limit ?? 10,
         });
         // Post-filter by kind and tags if specified
@@ -154,7 +154,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         results = await search.exactMatch({
           domain,
           brand,
-          enforcement: enforcement as Enforcement[] | undefined,
+          weight: weight as string[] | undefined,
           kind,
           tags,
         });
@@ -180,7 +180,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
           .replace(/\n+/g, ' ')
           .trim()
           .slice(0, 150);
-        return `- [${u.enforcement.toUpperCase()}] **${u.id}**${tags}\n  ${u.title}${excerpt ? `\n  _${excerpt}…_` : ''}`;
+        return `- [${u.weight.toUpperCase()}] **${u.id}**${tags}\n  ${u.title}${excerpt ? `\n  _${excerpt}…_` : ''}`;
       });
 
       return {
@@ -218,7 +218,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         `**ID:** ${unit.id}`,
         `**Domain:** ${unit.domain}`,
         `**Kind:** ${unit.kind}`,
-        `**Enforcement:** ${unit.enforcement}`,
+        `**string:** ${unit.weight}`,
         `**Tags:** ${unit.tags.join(', ')}`,
         unit.brand ? `**Brand:** ${unit.brand}` : null,
         unit.system ? `**System:** ${unit.system}` : null,
@@ -241,35 +241,33 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   // --- Tool: list_knowledge_units ---
   server.tool(
     'list_knowledge_units',
-    'List all available knowledge units with their IDs, titles, enforcement, and tags. Useful for discovering what rules exist.',
+    'List all available knowledge units with their IDs, titles, weight, and tags. Useful for discovering what rules exist.',
     {
       domain: z.string().optional().describe('Filter by domain'),
       brand: z.string().optional().describe('Filter by brand'),
-      enforcement: z
+      weight: z
         .enum(['must', 'should', 'may', 'context', 'deprecated'])
         .optional()
-        .describe('Filter by enforcement level'),
+        .describe('Filter by weight level'),
     },
-    async ({ domain, brand, enforcement }) => {
+    async ({ domain, brand, weight }) => {
       let filtered = [...units];
       if (domain) filtered = filtered.filter((u) => u.domain === domain);
       if (brand)
         filtered = filtered.filter(
           (u) => isGlobal(u.brand) || u.brand === brand,
         );
-      if (enforcement)
-        filtered = filtered.filter((u) => u.enforcement === enforcement);
+      if (weight) filtered = filtered.filter((u) => u.weight === weight);
 
       filtered.sort(
         (a, b) =>
-          (ENFORCEMENT_ORDER[a.enforcement] ?? 99) -
-          (ENFORCEMENT_ORDER[b.enforcement] ?? 99),
+          (WEIGHT_ORDER[a.weight] ?? 99) - (WEIGHT_ORDER[b.weight] ?? 99),
       );
 
       const text = filtered
         .map(
           (u) =>
-            `- **${u.id}** [${u.enforcement.toUpperCase()}]: ${u.title} (${u.tags.join(', ')})`,
+            `- **${u.id}** [${u.weight.toUpperCase()}]: ${u.title} (${u.tags.join(', ')})`,
         )
         .join('\n');
 
@@ -287,7 +285,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
   // --- Tool: get_brand_rules ---
   server.tool(
     'get_brand_rules',
-    'List all knowledge units for a specific brand, sorted by enforcement. Returns an index of IDs, titles, and enforcement levels. Use get_knowledge_unit(id) to read a full unit.',
+    'List all knowledge units for a specific brand, sorted by weight. Returns an index of IDs, titles, and weight levels. Use get_knowledge_unit(id) to read a full unit.',
     {
       brand: z.string().describe('Brand name'),
     },
@@ -311,7 +309,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
         };
       }
 
-      // Sort by enforcement (must first), then title
+      // Sort by weight (must first), then title
       const order: Record<string, number> = {
         must: 0,
         should: 1,
@@ -321,13 +319,13 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       };
       brandUnits.sort(
         (a, b) =>
-          (order[a.enforcement] ?? 9) - (order[b.enforcement] ?? 9) ||
+          (order[a.weight] ?? 9) - (order[b.weight] ?? 9) ||
           a.title.localeCompare(b.title),
       );
 
       const lines = brandUnits.map(
         (u) =>
-          `- [${u.enforcement.toUpperCase()}] **${u.id}** — ${u.title}${u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : ''}`,
+          `- [${u.weight.toUpperCase()}] **${u.id}** — ${u.title}${u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : ''}`,
       );
 
       const text = `${brandUnits.length} knowledge unit(s) for brand "${brand}":\n\n${lines.join('\n')}\n\nUse get_knowledge_unit(id) to read the full content of any unit.`;
@@ -377,7 +375,7 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
             r.unit.body.length > EXCERPT_CHARS
               ? `${r.unit.body.slice(0, EXCERPT_CHARS)}\n[…truncated]`
               : r.unit.body;
-          return `### ${r.unit.title} [${r.unit.enforcement.toUpperCase()}]${brandTag}\n**ID:** ${r.unit.id}\n\n${excerpt}`;
+          return `### ${r.unit.title} [${r.unit.weight.toUpperCase()}]${brandTag}\n**ID:** ${r.unit.id}\n\n${excerpt}`;
         })
         .join('\n\n---\n\n');
 

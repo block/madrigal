@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { MadrigalConfig } from './config.js';
-import type { Enforcement } from './enforcement.js';
 import type { KnowledgeUnit } from './schema/index.js';
+import type { Weight } from './weight.js';
 
 /**
  * Options for resolving knowledge units.
@@ -29,8 +29,8 @@ export interface ResolveOptions {
 export interface EnforcementOverride {
   /** ID of the knowledge unit to override */
   id: string;
-  /** New enforcement level */
-  enforcement: Enforcement;
+  /** New weight level */
+  weight: string;
   /** Reason for the override */
   reason?: string;
 }
@@ -49,7 +49,7 @@ export interface OverridesFile {
  * 1. Start with units matching the brand's `include` list (e.g., 'global')
  * 2. Layer on brand-specific units
  * 3. If same `id` exists in both layers, brand-specific wins (deep merge)
- * 4. Apply enforcement overrides from overrides.yaml files
+ * 4. Apply weight overrides from overrides.yaml files
  *
  * @param options - Resolution options
  * @returns Resolved knowledge units for the brand
@@ -108,14 +108,14 @@ export function resolveForBrand(options: ResolveOptions): KnowledgeUnit[] {
     }
   }
 
-  // Apply enforcement overrides from overrides.yaml files
+  // Apply weight overrides from overrides.yaml files
   const overrides = loadOverrides(brand, baseDir);
   for (const override of overrides) {
     const unit = unitMap.get(override.id);
     if (unit) {
       unitMap.set(override.id, {
         ...unit,
-        enforcement: override.enforcement,
+        weight: override.weight,
       });
     }
   }
@@ -141,13 +141,13 @@ function mergeUnits(
 }
 
 /**
- * Load enforcement overrides from overrides.yaml files.
+ * Load weight overrides from overrides.yaml files.
  *
  * Searches for:
  * 1. knowledge/<brand>/overrides.yaml
  * 2. knowledge/brands/<brand>/overrides.yaml
  *
- * Supports both 'enforcement' and legacy 'severity' field names.
+ * Supports both 'weight' and legacy 'severity' field names.
  */
 function loadOverrides(brand: string, baseDir: string): EnforcementOverride[] {
   const overrides: EnforcementOverride[] = [];
@@ -168,8 +168,8 @@ function loadOverrides(brand: string, baseDir: string): EnforcementOverride[] {
             const raw = entry as Record<string, unknown>;
             overrides.push({
               id: String(raw.id),
-              // Support both 'enforcement' and legacy 'severity' field
-              enforcement: (raw.enforcement || raw.severity) as Enforcement,
+              // Support both 'weight' and legacy 'severity' field
+              weight: (raw.weight || raw.severity) as string,
               reason: raw.reason ? String(raw.reason) : undefined,
             });
           }
@@ -281,13 +281,13 @@ export function filterByDomain(
 }
 
 /**
- * Filter units by enforcement level.
+ * Filter units by weight level.
  */
 export function filterByEnforcement(
   units: KnowledgeUnit[],
-  enforcement: Enforcement,
+  weight: string,
 ): KnowledgeUnit[] {
-  return units.filter((u) => u.enforcement === enforcement);
+  return units.filter((u) => u.weight === weight);
 }
 
 /**

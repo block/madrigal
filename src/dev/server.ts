@@ -13,7 +13,7 @@ import { cors } from 'hono/cors';
 import { getState, loadState } from './state.js';
 import { resolveForBrand } from '../resolver.js';
 import { build, buildPlatformByName } from '../pipeline.js';
-import { ENFORCEMENT_ORDER } from '../enforcement.js';
+import { WEIGHT_ORDER } from '../weight.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv, cosineSimilarity } from '../topology/index.js';
 import type { TopologyData, EmbeddingProvider } from '../topology/index.js';
@@ -60,7 +60,7 @@ export function createApp(baseDir: string): Hono {
 
     for (const u of units) {
       byDomain[u.domain] = (byDomain[u.domain] || 0) + 1;
-      byEnforcement[u.enforcement] = (byEnforcement[u.enforcement] || 0) + 1;
+      byEnforcement[u.weight] = (byEnforcement[u.weight] || 0) + 1;
       byKind[u.kind] = (byKind[u.kind] || 0) + 1;
       const brand = u.brand || 'global';
       byBrand[brand] = (byBrand[brand] || 0) + 1;
@@ -84,7 +84,7 @@ export function createApp(baseDir: string): Hono {
     const domain = c.req.query('domain');
     const brand = c.req.query('brand');
     const kind = c.req.query('kind');
-    const enforcement = c.req.query('enforcement');
+    const weight = c.req.query('weight');
     const query = c.req.query('search');
     const limit = parseInt(c.req.query('limit') || '50', 10);
     const offset = parseInt(c.req.query('offset') || '0', 10);
@@ -98,7 +98,7 @@ export function createApp(baseDir: string): Hono {
 
       let results = scored;
       if (kind) results = results.filter((r) => r.unit.kind === kind);
-      if (enforcement) results = results.filter((r) => r.unit.enforcement === enforcement);
+      if (weight) results = results.filter((r) => r.unit.weight === weight);
 
       const paged = results.slice(offset, offset + limit);
       return c.json({
@@ -111,12 +111,12 @@ export function createApp(baseDir: string): Hono {
     if (domain) filtered = filtered.filter((u) => u.domain === domain);
     if (brand) filtered = filtered.filter((u) => !u.brand || u.brand === brand);
     if (kind) filtered = filtered.filter((u) => u.kind === kind);
-    if (enforcement) filtered = filtered.filter((u) => u.enforcement === enforcement);
+    if (weight) filtered = filtered.filter((u) => u.weight === weight);
 
     filtered.sort(
       (a, b) =>
-        (ENFORCEMENT_ORDER[a.enforcement] ?? 99) -
-        (ENFORCEMENT_ORDER[b.enforcement] ?? 99),
+        (WEIGHT_ORDER[a.weight] ?? 99) -
+        (WEIGHT_ORDER[b.weight] ?? 99),
     );
 
     return c.json({
@@ -136,14 +136,14 @@ export function createApp(baseDir: string): Hono {
     }
 
     // Build brand resolution table
-    const brandResolutions: Record<string, { enforcement: string; overridden: boolean }> = {};
+    const brandResolutions: Record<string, { weight: string; overridden: boolean }> = {};
     for (const brandName of Object.keys(config.brands)) {
       const resolved = resolveForBrand({ units, config, brand: brandName, baseDir });
       const resolvedUnit = resolved.find((u) => u.id === id);
       if (resolvedUnit) {
         brandResolutions[brandName] = {
-          enforcement: resolvedUnit.enforcement,
-          overridden: resolvedUnit.enforcement !== unit.enforcement,
+          weight: resolvedUnit.weight,
+          overridden: resolvedUnit.weight !== unit.weight,
         };
       }
     }
@@ -212,8 +212,8 @@ export function createApp(baseDir: string): Hono {
       const original = units.find((u) => u.id === ru.id);
       return {
         ...ru,
-        _baseEnforcement: original?.enforcement ?? ru.enforcement,
-        _overridden: original ? original.enforcement !== ru.enforcement : false,
+        _baseEnforcement: original?.weight ?? ru.weight,
+        _overridden: original ? original.weight !== ru.weight : false,
       };
     });
 
@@ -246,7 +246,7 @@ export function createApp(baseDir: string): Hono {
         domainMap.set(u.domain, entry);
       }
       entry.count++;
-      entry.byEnforcement[u.enforcement] = (entry.byEnforcement[u.enforcement] || 0) + 1;
+      entry.byEnforcement[u.weight] = (entry.byEnforcement[u.weight] || 0) + 1;
     }
 
     // Include config domains with zero units (coverage gaps)
@@ -257,7 +257,7 @@ export function createApp(baseDir: string): Hono {
     }
 
     const domains = Array.from(domainMap.entries()).map(([domain, data]) => {
-      // Coverage score: weighted enforcement sum normalized
+      // Coverage score: weighted weight sum normalized
       let weightedSum = 0;
       for (const [enf, count] of Object.entries(data.byEnforcement)) {
         weightedSum += (enforcementWeights[enf] ?? 0) * count;
@@ -325,7 +325,7 @@ export function createApp(baseDir: string): Hono {
     const serialize = (v: any) => ({
       unitId: v.knowledgeUnit.id,
       unitTitle: v.knowledgeUnit.title,
-      enforcement: v.knowledgeUnit.enforcement,
+      weight: v.knowledgeUnit.weight,
       confidence: v.matchResult.confidence,
       message: v.message,
     });
@@ -529,7 +529,7 @@ export function createApp(baseDir: string): Hono {
       baseUrl?: string;
       domain?: string;
       brand?: string;
-      enforcement?: string;
+      weight?: string;
       batch?: boolean;
     }>();
 
@@ -555,7 +555,7 @@ export function createApp(baseDir: string): Hono {
           complete,
           domain: body.domain,
           brand: body.brand,
-          enforcement: body.enforcement as any,
+          weight: body.weight as any,
           batch: body.batch,
         },
         state.config,
@@ -607,7 +607,7 @@ export function createApp(baseDir: string): Hono {
       const serialize = (v: any) => ({
         unitId: v.knowledgeUnit.id,
         unitTitle: v.knowledgeUnit.title,
-        enforcement: v.knowledgeUnit.enforcement,
+        weight: v.knowledgeUnit.weight,
         confidence: v.matchResult.confidence,
         message: v.message,
       });
@@ -638,7 +638,7 @@ export function createApp(baseDir: string): Hono {
       title: u.title,
       domain: u.domain,
       brand: u.brand,
-      enforcement: u.enforcement,
+      weight: u.weight,
       sourcePath: u.sourcePath,
       provenance: u.provenance,
     }));

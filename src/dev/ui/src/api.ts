@@ -44,7 +44,7 @@ export interface KnowledgeUnit {
   system?: string;
   brand?: string;
   tags: string[];
-  enforcement: string;
+  weight: string;
   attributes: Record<string, unknown>;
   provenance: {
     origin: string;
@@ -60,7 +60,7 @@ export interface UnitsResponse {
 
 export interface UnitDetailResponse {
   unit: KnowledgeUnit;
-  brandResolutions: Record<string, { enforcement: string; overridden: boolean }>;
+  brandResolutions: Record<string, { weight: string; overridden: boolean }>;
 }
 
 export interface SearchResponse {
@@ -101,7 +101,7 @@ export interface ProposedUnitDTO {
   domain: string;
   brand?: string;
   system?: string;
-  enforcement: string;
+  weight: string;
   tags: string[];
   body: string;
   related: Array<{ id: string; reason: string }>;
@@ -114,7 +114,7 @@ export interface ProposeResponse {
 export interface ComplianceViolationDTO {
   unitId: string;
   unitTitle: string;
-  enforcement: string;
+  weight: string;
   confidence: number;
   message: string;
 }
@@ -131,7 +131,7 @@ export interface AuditUnit {
   title: string;
   domain: string;
   brand?: string;
-  enforcement: string;
+  weight: string;
   sourcePath?: string;
   provenance: {
     origin: string;
@@ -217,7 +217,7 @@ export const api = {
     baseUrl?: string;
     domain?: string;
     brand?: string;
-    enforcement?: string;
+    weight?: string;
     batch?: boolean;
   }) => fetchJson<ProposeResponse>('/workbench/propose', { method: 'POST', body: JSON.stringify(body) }),
 

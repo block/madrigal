@@ -3,11 +3,45 @@ import { basename, extname, relative } from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 import { parse as parseYaml } from 'yaml';
-import type { MadrigalConfig } from './config.js';
-import type { Enforcement } from './enforcement.js';
-import { parseEnforcement } from './enforcement.js';
+import type { FieldMapping, MadrigalConfig } from './config.js';
 import { createFileProvenance } from './provenance.js';
 import type { KnowledgeFrontmatter, KnowledgeUnit } from './schema/index.js';
+import { defaultWeight, parseWeight } from './weight.js';
+
+/**
+ * Apply fieldMappings from config to a raw frontmatter/YAML object.
+ *
+ * For each entry in fieldMappings:
+ *   - Simple form ("id": "key"): copies raw["key"] → raw["id"] if not already set
+ *   - Complex form ("weight": { from: "status", values: { active: "must" } }):
+ *     reads raw["status"], translates via values map, writes to raw["weight"]
+ *
+ * Modifies the object in place and returns it.
+ */
+export function applyFieldMappings(
+  raw: Record<string, unknown>,
+  mappings: Record<string, FieldMapping>,
+): Record<string, unknown> {
+  for (const [targetField, mapping] of Object.entries(mappings)) {
+    if (typeof mapping === 'string') {
+      // Simple rename: only apply if target not already populated
+      if (raw[targetField] === undefined && raw[mapping] !== undefined) {
+        raw[targetField] = raw[mapping];
+      }
+    } else {
+      // Complex: rename + optional value translation
+      const sourceValue = raw[mapping.from];
+      if (raw[targetField] === undefined && sourceValue !== undefined) {
+        const strValue = String(sourceValue);
+        raw[targetField] =
+          mapping.values?.[strValue] !== undefined
+            ? mapping.values[strValue]
+            : strValue;
+      }
+    }
+  }
+  return raw;
+}
 
 /**
  * Options for loading knowledge units.
@@ -81,6 +115,8 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
   const kindNames = new Set(Object.keys(config.kinds));
   const brandNames = new Set(Object.keys(config.brands));
   brandNames.add('global'); // 'global' is always valid
+  const levels = config.levels;
+  const fieldMappings = config.fieldMappings;
 
   for (const filePath of files) {
     try {
@@ -92,6 +128,8 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
           domainNames,
           kindNames,
           brandNames,
+          levels,
+          fieldMappings,
           warnings,
         );
         units.push(...parsed);
@@ -102,6 +140,8 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
           domainNames,
           kindNames,
           brandNames,
+          levels,
+          fieldMappings,
           warnings,
         );
         if (unit) {
@@ -143,10 +183,13 @@ function parseKnowledgeFile(
   domainNames: Set<string>,
   kindNames: Set<string>,
   brandNames: Set<string>,
+  levels: string[],
+  fieldMappings: Record<string, FieldMapping>,
   warnings: LoadWarning[],
 ): KnowledgeUnit | null {
   const content = readFileSync(filePath, 'utf-8');
   const { data, content: body } = matter(content);
+  applyFieldMappings(data as Record<string, unknown>, fieldMappings);
   const frontmatter = data as KnowledgeFrontmatter;
 
   // Validate required fields
@@ -192,18 +235,20 @@ function parseKnowledgeFile(
     });
   }
 
-  // Parse enforcement (with backward compat for 'severity' field)
-  let enforcement: Enforcement = 'may';
-  const rawEnforcement = frontmatter.enforcement || frontmatter.severity;
-  if (rawEnforcement) {
-    const parsed = parseEnforcement(rawEnforcement);
+  // Parse weight (accepts weight:, weight:, severity: in that priority order)
+  const fallbackWeight = defaultWeight(levels);
+  let weight: string = fallbackWeight;
+  const rawWeight =
+    frontmatter.weight || frontmatter.weight || frontmatter.severity;
+  if (rawWeight) {
+    const parsed = parseWeight(rawWeight, levels);
     if (parsed) {
-      enforcement = parsed;
+      weight = parsed;
     } else {
       warnings.push({
         filePath,
-        field: 'enforcement',
-        message: `Invalid enforcement "${rawEnforcement}". Using "may".`,
+        field: 'weight',
+        message: `Unknown weight "${rawWeight}". Using "${fallbackWeight}". Valid levels: ${levels.join(', ')}`,
       });
     }
   }
@@ -232,7 +277,7 @@ function parseKnowledgeFile(
     system: frontmatter.system,
     brand: frontmatter.brand,
     tags: frontmatter.tags || [],
-    enforcement,
+    weight,
     attributes,
     provenance,
     sourcePath: relative(baseDir, filePath),
@@ -266,8 +311,9 @@ const KNOWN_YAML_KEYS = new Set([
   'system',
   'brand',
   'tags',
-  'enforcement',
-  'severity',
+  'weight',
+  'weight', // deprecated alias
+  'severity', // deprecated alias
   'provenance',
   'body',
   'entries',
@@ -287,6 +333,8 @@ function parseKnowledgeYamlFile(
   domainNames: Set<string>,
   kindNames: Set<string>,
   brandNames: Set<string>,
+  levels: string[],
+  fieldMappings: Record<string, FieldMapping>,
   warnings: LoadWarning[],
 ): KnowledgeUnit[] {
   const content = readFileSync(filePath, 'utf-8');
@@ -301,6 +349,9 @@ function parseKnowledgeYamlFile(
   }
 
   const entries = parsed.entries as Array<Record<string, unknown>> | undefined;
+  // Apply field mappings to the top-level object before parsing
+  applyFieldMappings(parsed, fieldMappings);
+
   if (Array.isArray(entries)) {
     // Multi-unit mode: each entry becomes a unit, inheriting top-level defaults
     return entries.map((entry, index) =>
@@ -313,6 +364,7 @@ function parseKnowledgeYamlFile(
         domainNames,
         kindNames,
         brandNames,
+        levels,
         warnings,
       ),
     );
@@ -329,6 +381,7 @@ function parseKnowledgeYamlFile(
       domainNames,
       kindNames,
       brandNames,
+      levels,
       warnings,
     ),
   ];
@@ -346,6 +399,7 @@ function buildYamlUnit(
   domainNames: Set<string>,
   kindNames: Set<string>,
   brandNames: Set<string>,
+  levels: string[],
   warnings: LoadWarning[],
 ): KnowledgeUnit {
   // Merge top-level defaults with entry overrides
@@ -393,20 +447,21 @@ function buildYamlUnit(
     });
   }
 
-  // Parse enforcement
-  let enforcement: Enforcement = 'may';
-  const rawEnforcement = (merged.enforcement || merged.severity) as
+  // Parse weight (accepts weight:, weight:, severity: in that priority order)
+  const fallbackWeight = defaultWeight(levels);
+  let weight: string = fallbackWeight;
+  const rawWeight = (merged.weight || merged.weight || merged.severity) as
     | string
     | undefined;
-  if (rawEnforcement) {
-    const parsed = parseEnforcement(String(rawEnforcement));
-    if (parsed) {
-      enforcement = parsed;
+  if (rawWeight) {
+    const parsedWeight = parseWeight(String(rawWeight), levels);
+    if (parsedWeight) {
+      weight = parsedWeight;
     } else {
       warnings.push({
         filePath,
-        field: 'enforcement',
-        message: `Invalid enforcement "${rawEnforcement}" in YAML unit "${id}". Using "may".`,
+        field: 'weight',
+        message: `Unknown weight "${rawWeight}" in YAML unit "${id}". Using "${fallbackWeight}". Valid levels: ${levels.join(', ')}`,
       });
     }
   }
@@ -448,7 +503,8 @@ function buildYamlUnit(
       'system',
       'brand',
       'tags',
-      'enforcement',
+      'weight',
+      'weight',
       'severity',
       'provenance',
       'body',
@@ -474,7 +530,7 @@ function buildYamlUnit(
     system,
     brand,
     tags,
-    enforcement,
+    weight,
     attributes,
     provenance,
     sourcePath: relative(baseDir, filePath),
@@ -502,6 +558,8 @@ export function loadKnowledgeSync(options: LoadOptions): LoadResult {
   const kindNames = new Set(Object.keys(config.kinds));
   const brandNames = new Set(Object.keys(config.brands));
   brandNames.add('global');
+  const levels = config.levels;
+  const fieldMappings = config.fieldMappings;
 
   for (const filePath of files) {
     try {
@@ -513,6 +571,8 @@ export function loadKnowledgeSync(options: LoadOptions): LoadResult {
           domainNames,
           kindNames,
           brandNames,
+          levels,
+          fieldMappings,
           warnings,
         );
         units.push(...parsed);
@@ -523,6 +583,8 @@ export function loadKnowledgeSync(options: LoadOptions): LoadResult {
           domainNames,
           kindNames,
           brandNames,
+          levels,
+          fieldMappings,
           warnings,
         );
         if (unit) {

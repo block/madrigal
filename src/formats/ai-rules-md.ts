@@ -1,5 +1,5 @@
-import { compareEnforcement, isEnforceable } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
+import { compareWeight, isHighWeight } from '../weight.js';
 import type { Format, FormatOptions } from './registry.js';
 
 /**
@@ -32,16 +32,14 @@ export const aiRulesMdFormat: Format = {
     lines.push('');
 
     // Filter to enforceable rules only (must, should)
-    const enforceableUnits = units.filter((u) => isEnforceable(u.enforcement));
+    const enforceableUnits = units.filter((u) => isHighWeight(u.weight));
 
-    // Sort by enforcement (must first)
-    enforceableUnits.sort((a, b) =>
-      compareEnforcement(a.enforcement, b.enforcement),
-    );
+    // Sort by weight (must first)
+    enforceableUnits.sort((a, b) => compareWeight(a.weight, b.weight));
 
-    // Group by enforcement
-    const musts = enforceableUnits.filter((u) => u.enforcement === 'must');
-    const shoulds = enforceableUnits.filter((u) => u.enforcement === 'should');
+    // Group by weight
+    const musts = enforceableUnits.filter((u) => u.weight === 'must');
+    const shoulds = enforceableUnits.filter((u) => u.weight === 'should');
 
     if (musts.length > 0) {
       lines.push('## MUST Follow');
@@ -69,7 +67,7 @@ export const aiRulesMdFormat: Format = {
 
     // Add context rules in a collapsed section
     const contextUnits = units.filter(
-      (u) => u.enforcement === 'context' || u.enforcement === 'may',
+      (u) => u.weight === 'context' || u.weight === 'may',
     );
     if (contextUnits.length > 0) {
       lines.push('## Additional Context');

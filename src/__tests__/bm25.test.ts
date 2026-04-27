@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Enforcement } from '../enforcement.js';
 import { findRelated } from '../propose.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25SearchAdapter } from '../search/adapter.js';
 import { BM25Index, tokenize } from '../search/bm25.js';
+import type { Weight } from '../weight.js';
 
 function makeUnit(
   overrides: Partial<KnowledgeUnit> & { id: string; title: string },
@@ -13,7 +13,7 @@ function makeUnit(
     domain: 'content',
     kind: 'rule',
     tags: [],
-    enforcement: 'should' as Enforcement,
+    weight: 'should' as string,
     attributes: {},
     provenance: { origin: 'human-authored', confidence: 1.0 },
     ...overrides,
@@ -65,7 +65,7 @@ describe('BM25Index', () => {
       title: 'FDIC banking disclosure requirements',
       body: 'All banking interfaces must display FDIC disclosure. This is a legal compliance requirement for financial products.',
       tags: ['compliance', 'legal', 'banking'],
-      enforcement: 'must' as Enforcement,
+      weight: 'must' as string,
     }),
     makeUnit({
       id: 'voice',
@@ -208,7 +208,7 @@ describe('BM25SearchAdapter', () => {
       domain: 'content',
       kind: 'rule',
       tags: ['buttons', 'ux-copy'],
-      enforcement: 'should' as Enforcement,
+      weight: 'should' as string,
     }),
     makeUnit({
       id: 'fdic',
@@ -217,7 +217,7 @@ describe('BM25SearchAdapter', () => {
       domain: 'content',
       kind: 'rule',
       tags: ['compliance', 'legal'],
-      enforcement: 'must' as Enforcement,
+      weight: 'must' as string,
     }),
     makeUnit({
       id: 'tokens',
@@ -227,7 +227,7 @@ describe('BM25SearchAdapter', () => {
       kind: 'glossary',
       brand: 'square',
       tags: ['tokens', 'colors'],
-      enforcement: 'may' as Enforcement,
+      weight: 'may' as string,
     }),
     makeUnit({
       id: 'voice',
@@ -235,7 +235,7 @@ describe('BM25SearchAdapter', () => {
       body: 'Be clear and warm.',
       domain: 'content',
       tags: ['voice'],
-      enforcement: 'context' as Enforcement,
+      weight: 'context' as string,
     }),
   ];
 
@@ -274,9 +274,9 @@ describe('BM25SearchAdapter', () => {
       expect(results.some((u) => u.id === 'buttons')).toBe(true); // no brand = global
     });
 
-    it('filters by enforcement', async () => {
+    it('filters by weight', async () => {
       const adapter = new BM25SearchAdapter(units);
-      const results = await adapter.exactMatch({ enforcement: ['must'] });
+      const results = await adapter.exactMatch({ weight: ['must'] });
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe('fdic');
     });
@@ -305,11 +305,11 @@ describe('BM25SearchAdapter', () => {
       expect(results[0].id).toBe('fdic');
     });
 
-    it('sorts by enforcement when no textQuery', async () => {
+    it('sorts by weight when no textQuery', async () => {
       const adapter = new BM25SearchAdapter(units);
       const results = await adapter.exactMatch({ domain: 'content' });
       // must (fdic) should come before should (buttons) before context (voice)
-      expect(results[0].enforcement).toBe('must');
+      expect(results[0].weight).toBe('must');
     });
   });
 
@@ -364,16 +364,15 @@ describe('BM25SearchAdapter', () => {
       expect(ids).toContain('global-rule');
     });
 
-    it('filters by minEnforcement', async () => {
+    it('filters by minWeight', async () => {
       const adapter = new BM25SearchAdapter(units);
       const results = await adapter.semanticSearch('copy guidelines', {
-        minEnforcement: 'should',
+        minWeight: 'should',
       });
       // should only include must and should, not may or context
       expect(
         results.every(
-          (r) =>
-            r.unit.enforcement === 'must' || r.unit.enforcement === 'should',
+          (r) => r.unit.weight === 'must' || r.unit.weight === 'should',
         ),
       ).toBe(true);
     });
@@ -423,7 +422,7 @@ describe('findRelated', () => {
       filename: 'cta-labels.md',
       title: 'CTA button label guidelines',
       domain: 'content',
-      enforcement: 'should',
+      weight: 'should',
       tags: ['labels'],
       body: 'Call-to-action buttons should use clear verb-object labels that tell users what will happen.',
     };
@@ -438,7 +437,7 @@ describe('findRelated', () => {
       filename: 'test.md',
       title: 'Test',
       domain: 'content',
-      enforcement: 'should',
+      weight: 'should',
       tags: [],
       body: 'test content',
     };
@@ -458,7 +457,7 @@ describe('findRelated', () => {
       filename: 'writing.md',
       title: 'Writing guidelines for clarity',
       domain: 'content',
-      enforcement: 'should',
+      weight: 'should',
       tags: ['writing'],
       body: 'Good writing improves user experience and clarity.',
     };

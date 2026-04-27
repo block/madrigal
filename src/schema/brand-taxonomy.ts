@@ -1,4 +1,4 @@
-import type { Enforcement } from '../enforcement.js';
+import type { Weight } from '../weight.js';
 
 /**
  * A Brand represents a distinct brand identity within the organization.
@@ -38,8 +38,8 @@ export interface CreateBrand {
 }
 
 /**
- * Brand-specific enforcement override for a knowledge unit.
- * Allows a global rule to have different enforcement levels per brand.
+ * Brand-specific weight override for a knowledge unit.
+ * Allows a global rule to have different weight levels per brand.
  */
 export interface BrandEnforcementOverride {
   /** The brand this override applies to */
@@ -48,8 +48,8 @@ export interface BrandEnforcementOverride {
   /** The knowledge unit being overridden */
   knowledgeUnitId: string;
 
-  /** The brand-specific enforcement level */
-  enforcement: Enforcement;
+  /** The brand-specific weight level */
+  weight: string;
 
   /** Reason for the override */
   reason?: string;
@@ -62,12 +62,12 @@ export interface BrandEnforcementOverride {
 }
 
 /**
- * Input for creating a brand enforcement override.
+ * Input for creating a brand weight override.
  */
 export interface CreateBrandEnforcementOverride {
   brandId: string;
   knowledgeUnitId: string;
-  enforcement: Enforcement;
+  weight: string;
   reason?: string;
   createdBy?: string;
 }

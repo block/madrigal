@@ -52,7 +52,7 @@ export async function checkCompliance(
     : units;
 
   // Build a search adapter over the resolved units if brand was specified
-  // (enforcement levels may have changed due to overrides)
+  // (weight levels may have changed due to overrides)
   let effectiveSearch = searchAdapter;
   if (brand) {
     const { BM25SearchAdapter } = await import('../search/adapter.js');
@@ -66,7 +66,7 @@ export async function checkCompliance(
     limit,
   });
 
-  // Partition by enforcement level
+  // Partition by weight level
   const violations: ComplianceViolation[] = [];
   const warnings: ComplianceViolation[] = [];
   const info: ComplianceViolation[] = [];
@@ -79,10 +79,10 @@ export async function checkCompliance(
         matched: true,
         confidence: result.score,
       },
-      message: `${result.unit.title} [${result.unit.enforcement.toUpperCase()}]`,
+      message: `${result.unit.title} [${result.unit.weight.toUpperCase()}]`,
     };
 
-    switch (result.unit.enforcement) {
+    switch (result.unit.weight) {
       case 'must':
         violations.push(violation);
         break;

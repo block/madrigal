@@ -1,5 +1,5 @@
-import type { Enforcement } from '../enforcement.js';
 import type { Provenance } from '../provenance.js';
+import type { Weight } from '../weight.js';
 
 /**
  * Knowledge domains supported by the system.
@@ -10,6 +10,7 @@ export type Domain = string;
 
 /**
  * Frontmatter fields expected in knowledge markdown files.
+ * Unknown fields are collected into `attributes` automatically.
  */
 export interface KnowledgeFrontmatter {
   id?: string;
@@ -19,8 +20,11 @@ export interface KnowledgeFrontmatter {
   system?: string;
   brand?: string;
   tags?: string[];
+  /** Weight level — how strongly this unit should influence decisions. */
+  weight?: string;
+  /** @deprecated Use weight instead */
   enforcement?: string;
-  /** @deprecated Use enforcement instead */
+  /** @deprecated Use weight instead */
   severity?: string;
   attributes?: Record<string, unknown>;
   provenance?: Partial<Provenance>;
@@ -31,7 +35,7 @@ export interface KnowledgeFrontmatter {
  * It represents a single rule, guideline, pattern, or insight.
  */
 export interface KnowledgeUnit {
-  /** Unique identifier (UUID) */
+  /** Unique identifier */
   id: string;
 
   /** Human-readable title */
@@ -49,14 +53,18 @@ export interface KnowledgeUnit {
   /** Design system this applies to (e.g., 'market', 'arcade', 'wave') */
   system?: string;
 
-  /** Brand this applies to, null for global rules */
+  /** Brand this applies to; omit or use 'shared'/'global' for universal units */
   brand?: string;
 
   /** Searchable tags for categorization */
   tags: string[];
 
-  /** Enforcement level */
-  enforcement: Enforcement;
+  /**
+   * How strongly this unit should influence decisions.
+   * Config-driven — teams define their own level vocabulary in madrigal.config.yaml.
+   * Default levels: must > should > may > context > deprecated.
+   */
+  weight: Weight;
 
   /** Open metadata for domain-specific attributes (surfaces, audiences, etc.) */
   attributes: Record<string, unknown>;
@@ -86,7 +94,7 @@ export interface CreateKnowledgeUnit {
   system?: string;
   brand?: string;
   tags: string[];
-  enforcement: Enforcement;
+  weight: Weight;
   attributes?: Record<string, unknown>;
   provenance: Provenance;
 }
@@ -103,7 +111,7 @@ export interface UpdateKnowledgeUnit {
   system?: string;
   brand?: string;
   tags?: string[];
-  enforcement?: Enforcement;
+  weight?: Weight;
   attributes?: Record<string, unknown>;
   provenance?: Provenance;
 }
