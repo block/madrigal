@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { DEFAULT_WEIGHT_LEVELS } from './weight.js';
 
 /**
  * Configuration for a knowledge domain.
@@ -41,6 +42,27 @@ export interface PlatformConfig {
 }
 
 /**
+ * Maps a source frontmatter field to a Madrigal field, optionally with value translation.
+ *
+ * Simple form (rename only):
+ *   fieldMappings:
+ *     id: key            # their "key" field → madrigal's "id"
+ *     domain: category   # their "category" → madrigal's "domain"
+ *
+ * Complex form (rename + value translation):
+ *   fieldMappings:
+ *     weight:
+ *       from: status
+ *       values:
+ *         active: must
+ *         draft: context
+ *         deprecated: deprecated
+ */
+export type FieldMapping =
+  | string
+  | { from: string; values?: Record<string, string> };
+
+/**
  * The root Madrigal configuration.
  * Loaded from madrigal.config.yaml or madrigal.config.js.
  */
@@ -55,6 +77,28 @@ export interface MadrigalConfig {
   brands: Record<string, BrandConfig>;
   /** Publish platform definitions (key is platform name) */
   platforms: Record<string, PlatformConfig>;
+  /**
+   * Weight levels ordered from highest to lowest importance.
+   * Defaults to: must, should, may, context, deprecated.
+   * Teams can define their own vocabulary here.
+   *
+   * Example:
+   *   levels: [stable, beta, experimental, deprecated]
+   */
+  levels: string[];
+  /**
+   * Map source frontmatter field names to Madrigal's normalized fields.
+   * Allows teams to keep their existing metadata vocabulary without renaming files.
+   *
+   * Mappable target fields: id, title, domain, kind, brand, system, tags, weight
+   *
+   * Example:
+   *   fieldMappings:
+   *     id: key
+   *     domain: category
+   *     weight: { from: status, values: { active: must, draft: context } }
+   */
+  fieldMappings: Record<string, FieldMapping>;
 }
 
 /**
@@ -150,6 +194,10 @@ function normalizeConfig(raw: unknown, _baseDir: string): MadrigalConfig {
     kinds: (config.kinds as Record<string, KindConfig>) || {},
     brands: (config.brands as Record<string, BrandConfig>) || {},
     platforms: (config.platforms as Record<string, PlatformConfig>) || {},
+    levels: Array.isArray(config.levels)
+      ? (config.levels as string[])
+      : [...DEFAULT_WEIGHT_LEVELS],
+    fieldMappings: (config.fieldMappings as Record<string, FieldMapping>) || {},
   };
 }
 

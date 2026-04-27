@@ -48,7 +48,7 @@ export const jsonBundleFormat: Format = {
         system: unit.system,
         brand: unit.brand,
         tags: unit.tags,
-        enforcement: unit.enforcement,
+        weight: unit.weight,
         attributes: unit.attributes,
         provenance: unit.provenance,
         sourcePath: unit.sourcePath,

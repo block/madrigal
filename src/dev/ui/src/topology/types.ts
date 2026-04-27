@@ -5,7 +5,7 @@ export type TopologyNode = {
   title: string;
   domain: string;
   kind: string;
-  enforcement: string;
+  weight: string;
   brand?: string;
   tags: string[];
   excerpt: string;

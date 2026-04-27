@@ -37,14 +37,6 @@ export {
   loadConfig,
   validateConfig,
 } from './config.js';
-// Enforcement
-export type { Enforcement } from './enforcement.js';
-export {
-  compareEnforcement,
-  ENFORCEMENT_ORDER,
-  isEnforceable,
-  parseEnforcement,
-} from './enforcement.js';
 // Eval
 export {
   type EvalResult,
@@ -62,6 +54,13 @@ export { jsonBundleFormat } from './formats/json-bundle.js';
 export { meshDomainFormat } from './formats/mesh-domain.js';
 export { skillMdFormat } from './formats/skill-md.js';
 export { topologyJsonFormat } from './formats/topology-json.js';
+export {
+  analyzeKnowledgeSources,
+  type FieldSummary,
+  generateConfig,
+  type InitAnalysis,
+  runInit,
+} from './init.js';
 // Loader
 export type {
   LoadError,
@@ -69,7 +68,11 @@ export type {
   LoadResult,
   LoadWarning,
 } from './loader.js';
-export { loadKnowledge, loadKnowledgeSync } from './loader.js';
+export {
+  applyFieldMappings,
+  loadKnowledge,
+  loadKnowledgeSync,
+} from './loader.js';
 // Pipeline
 export type {
   BuildOptions,
@@ -77,14 +80,12 @@ export type {
   PipelineResult,
 } from './pipeline.js';
 export { build, buildPlatformByName } from './pipeline.js';
-
 // Preprocessors
 export type { Preprocessor } from './preprocessors/index.js';
 export {
   defaultPreprocessorRegistry,
   PreprocessorRegistry,
 } from './preprocessors/index.js';
-
 // Propose (authoring assistant)
 export type {
   LlmCompletionFn,
@@ -119,7 +120,6 @@ export {
   resolveForBrand,
   resolveUnits,
 } from './resolver.js';
-
 // Rules
 export type { MatchResult, OverrideConfig } from './rules/index.js';
 export type {
@@ -143,3 +143,13 @@ export {
 } from './search/index.js';
 // Serve (MCP server)
 export { type ServeOptions, serveMcp } from './serve/index.js';
+export type { Weight } from './weight.js';
+export {
+  buildWeightOrder,
+  compareWeight,
+  DEFAULT_WEIGHT_LEVELS,
+  defaultWeight,
+  isHighWeight,
+  parseWeight,
+  WEIGHT_ORDER,
+} from './weight.js';

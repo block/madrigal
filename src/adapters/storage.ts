@@ -1,10 +1,10 @@
-import type { Enforcement } from '../enforcement.js';
 import type {
   CreateKnowledgeUnit,
   Domain,
   KnowledgeUnit,
   UpdateKnowledgeUnit,
 } from '../schema/knowledge-unit.js';
+import type { Weight } from '../weight.js';
 
 /**
  * Filter options for querying knowledge units.
@@ -16,8 +16,8 @@ export interface QueryFilter {
   /** Filter by brand (null for global rules only) */
   brand?: string | null;
 
-  /** Filter by enforcement level */
-  enforcement?: Enforcement;
+  /** Filter by weight level */
+  weight?: string;
 
   /** Filter by tags (any match) */
   tags?: string[];

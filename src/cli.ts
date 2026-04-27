@@ -88,6 +88,8 @@ async function main() {
       return runCheck();
     case 'eval':
       return runEvalCmd();
+    case 'init':
+      return runInit();
     default:
       printUsage();
       process.exit(command ? 1 : 0);
@@ -98,6 +100,7 @@ function printUsage() {
   console.log(`madrigal v${pkg.version} — knowledge compiler
 
 Commands:
+  init        Scan knowledge files and generate a starter madrigal.config.yaml
   build       Compile knowledge units to all platforms
   validate    Check config and knowledge units for errors
   propose     Scaffold a new knowledge unit from rough input
@@ -109,7 +112,7 @@ Commands:
 Options:
   build [--platform <name>] [--dry-run]
   validate
-  propose [--domain <d>] [--brand <b>] [--enforcement <e>] [--batch] <input>
+  propose [--domain <d>] [--brand <b>] [--weight <e>] [--batch] <input>
   dev [--port <number>] [--open]
   serve [--bundle <path>]
   check [--brand <b>] [--domain <d>] [--format markdown|json|sarif] <input>
@@ -264,19 +267,19 @@ function createAnthropicCompletion(apiKey: string): LlmCompletionFn {
 }
 
 /**
- * madrigal propose [--domain <d>] [--brand <b>] [--enforcement <e>] [--batch] <input>
+ * madrigal propose [--domain <d>] [--brand <b>] [--weight <e>] [--batch] <input>
  */
 async function runPropose() {
   const domain = parseFlag('--domain');
   const brand = parseFlag('--brand');
-  const enforcement = parseFlag('--enforcement');
+  const weight = parseFlag('--weight');
   const batch = hasFlag('--batch');
 
   // Collect input: from args first, fall back to stdin
   const flagsToSkip = new Set([
     '--domain',
     '--brand',
-    '--enforcement',
+    '--weight',
     '--batch',
     'propose',
   ]);
@@ -320,7 +323,7 @@ async function runPropose() {
     complete: createAnthropicCompletion(apiKey),
     domain,
     brand,
-    enforcement: enforcement as ProposeOptions['enforcement'],
+    weight: weight as ProposeOptions['weight'],
     batch,
     baseDir: process.cwd(),
   };
@@ -336,7 +339,7 @@ async function runPropose() {
       console.log(`\nProposed: ${result.filePath}`);
       console.log(`  title:       "${result.title}"`);
       console.log(`  domain:      ${result.domain}`);
-      console.log(`  enforcement: ${result.enforcement}`);
+      console.log(`  weight: ${result.weight}`);
       console.log(`  tags:        ${result.tags.join(', ')}`);
       if (result.related.length > 0) {
         console.log(`\n  Related existing units:`);
@@ -502,6 +505,27 @@ async function runEvalCmd() {
   }
 
   console.log('\nAll evals passed.');
+}
+
+/**
+ * madrigal init [--sources <glob>] [--output <path>] [--dry-run]
+ */
+async function runInit() {
+  const sourcesFlag = parseFlag('--sources');
+  const output = parseFlag('--output') ?? 'madrigal.config.yaml';
+  const dryRun = process.argv.includes('--dry-run');
+
+  const sources = sourcesFlag
+    ? sourcesFlag.split(',').map((s) => s.trim())
+    : ['**/*.md', '**/*.yaml', '**/*.yml'];
+
+  const { runInit: _runInit } = await import('./init.js');
+  await _runInit({
+    sources,
+    baseDir: process.cwd(),
+    output,
+    dryRun,
+  });
 }
 
 function readStdin(): Promise<string> {

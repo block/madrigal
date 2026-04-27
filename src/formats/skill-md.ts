@@ -1,5 +1,5 @@
-import { compareEnforcement } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
+import { compareWeight } from '../weight.js';
 import type { Format, FormatOptions } from './registry.js';
 
 /**
@@ -9,7 +9,7 @@ import type { Format, FormatOptions } from './registry.js';
  * Output structure:
  * - Title and metadata header
  * - Grouped by domain
- * - Rules sorted by enforcement (must first)
+ * - Rules sorted by weight (must first)
  * - Each rule as a markdown section with tags
  */
 export const skillMdFormat: Format = {
@@ -46,10 +46,8 @@ export const skillMdFormat: Format = {
     for (const domain of sortedDomains) {
       const domainUnits = byDomain.get(domain) ?? [];
 
-      // Sort units by enforcement (most strict first)
-      domainUnits.sort((a, b) =>
-        compareEnforcement(a.enforcement, b.enforcement),
-      );
+      // Sort units by weight (most strict first)
+      domainUnits.sort((a, b) => compareWeight(a.weight, b.weight));
 
       lines.push(`## ${formatDomainTitle(domain)}`);
       lines.push('');
@@ -80,8 +78,8 @@ function formatDomainTitle(domain: string): string {
 function formatUnit(unit: KnowledgeUnit): string {
   const lines: string[] = [];
 
-  // Title with enforcement badge
-  const enforcementBadge = getEnforcementBadge(unit.enforcement);
+  // Title with weight badge
+  const enforcementBadge = getWeightBadge(unit.weight);
   lines.push(`### ${unit.title} ${enforcementBadge}`);
   lines.push('');
 
@@ -98,10 +96,10 @@ function formatUnit(unit: KnowledgeUnit): string {
 }
 
 /**
- * Get an enforcement badge.
+ * Get an weight badge.
  */
-function getEnforcementBadge(enforcement: string): string {
-  switch (enforcement) {
+function getWeightBadge(weight: string): string {
+  switch (weight) {
     case 'must':
       return '[MUST]';
     case 'should':

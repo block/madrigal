@@ -1,5 +1,5 @@
-import type { Enforcement } from '../enforcement.js';
 import type { Domain, KnowledgeUnit } from '../schema/knowledge-unit.js';
+import type { Weight } from '../weight.js';
 
 /**
  * Filter for exact rule matching (deterministic search).
@@ -15,8 +15,8 @@ export interface RuleFilter {
    */
   brand?: string | null;
 
-  /** Filter by enforcement levels */
-  enforcement?: Enforcement[];
+  /** Filter by weight levels */
+  weight?: string[];
 
   /** Filter by kind (e.g., 'rule', 'glossary', 'rubric') */
   kind?: string;
@@ -38,8 +38,11 @@ export interface SemanticSearchOptions {
   /** Filter by brand before searching */
   brand?: string;
 
-  /** Filter by minimum enforcement level */
-  minEnforcement?: Enforcement;
+  /** Filter by minimum weight level */
+  minWeight?: string;
+
+  /** @deprecated Use minWeight instead */
+  minEnforcement?: string;
 
   /** Maximum number of results to return */
   limit?: number;

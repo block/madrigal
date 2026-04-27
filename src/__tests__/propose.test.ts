@@ -10,7 +10,7 @@ function makeUnit(
     domain: 'default',
     kind: 'rule',
     tags: [],
-    enforcement: 'may',
+    weight: 'may',
     attributes: {},
     provenance: { origin: 'human-authored', confidence: 1.0 },
     ...overrides,
@@ -28,7 +28,7 @@ domain: content
 tags:
   - buttons
   - copy
-enforcement: should
+weight: should
 </frontmatter>
 <body>
 # Button Labels
@@ -42,7 +42,7 @@ Use verb+object pattern for button labels.
     expect(units[0].filename).toBe('button-labels.md');
     expect(units[0].title).toBe('Button labels — verb+object');
     expect(units[0].domain).toBe('content');
-    expect(units[0].enforcement).toBe('should');
+    expect(units[0].weight).toBe('should');
     expect(units[0].tags).toEqual(['buttons', 'copy']);
     expect(units[0].body).toContain('Use verb+object pattern');
   });
@@ -54,7 +54,7 @@ Use verb+object pattern for button labels.
 <frontmatter>
 title: "First rule"
 domain: accessibility
-enforcement: must
+weight: must
 tags:
   - a11y
 </frontmatter>
@@ -66,7 +66,7 @@ tags:
 <frontmatter>
 title: "Second rule"
 domain: content
-enforcement: may
+weight: may
 tags:
   - writing
 </frontmatter>
@@ -91,7 +91,7 @@ title: "Minimal unit"
 
     const units = parseProposedUnits(response);
     expect(units[0].domain).toBe('content');
-    expect(units[0].enforcement).toBe('should');
+    expect(units[0].weight).toBe('should');
     expect(units[0].tags).toEqual([]);
     expect(units[0].brand).toBeUndefined();
     expect(units[0].system).toBeUndefined();
@@ -106,7 +106,7 @@ title: "Brand-specific rule"
 domain: visual
 brand: acme
 system: web
-enforcement: should
+weight: should
 tags:
   - branding
 </frontmatter>
@@ -130,7 +130,7 @@ tags:
 <filename>my-rule.md</filename>
 <frontmatter>
 domain: content
-enforcement: may
+weight: may
 </frontmatter>
 <body>Body</body>
 </unit>`;
@@ -146,7 +146,7 @@ enforcement: may
 <frontmatter>
 title: "Color tokens: use semantic names"
 domain: visual
-enforcement: should
+weight: should
 tags:
   - tokens
 </frontmatter>
@@ -191,7 +191,7 @@ describe('findRelated', () => {
       filename: 'f.md',
       title: 'New rule',
       domain: 'content',
-      enforcement: 'should',
+      weight: 'should',
       tags: ['buttons', 'copy'],
       body: '',
     };
@@ -207,7 +207,7 @@ describe('findRelated', () => {
       filename: 'f.md',
       title: 'New visual rule',
       domain: 'visual',
-      enforcement: 'should',
+      weight: 'should',
       tags: ['color', 'tokens'],
       body: '',
     };
@@ -222,7 +222,7 @@ describe('findRelated', () => {
       filename: 'f.md',
       title: 'Something unrelated',
       domain: 'other',
-      enforcement: 'may',
+      weight: 'may',
       tags: ['icons'],
       body: '',
     };
@@ -238,7 +238,7 @@ describe('findRelated', () => {
       filename: 'f.md',
       title: 'Color contrast accessibility',
       domain: 'accessibility',
-      enforcement: 'may',
+      weight: 'may',
       tags: [],
       body: '',
     };
@@ -262,7 +262,7 @@ describe('findRelated', () => {
       filename: 'f.md',
       title: 'Shared topic words here',
       domain: 'content',
-      enforcement: 'may',
+      weight: 'may',
       tags: ['shared-tag-a', 'shared-tag-b'],
       body: '',
     };
@@ -275,7 +275,7 @@ describe('findRelated', () => {
       filename: 'f.md',
       title: 'Color token naming patterns',
       domain: 'visual',
-      enforcement: 'may',
+      weight: 'may',
       tags: ['color', 'tokens', 'contrast'],
       body: '',
     };

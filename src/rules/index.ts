@@ -1,4 +1,4 @@
-import type { Enforcement } from '../enforcement.js';
+import type { Weight } from '../weight.js';
 
 /**
  * Result of matching a code pattern against a knowledge unit rule.
@@ -11,11 +11,11 @@ export interface MatchResult {
 }
 
 /**
- * Brand-specific enforcement override configuration.
+ * Brand-specific weight override configuration.
  */
 export interface OverrideConfig {
   brand: string;
   knowledgeUnitId: string;
-  enforcement: Enforcement;
+  weight: string;
   reason: string;
 }

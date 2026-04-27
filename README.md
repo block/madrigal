@@ -10,7 +10,13 @@ Inspired by [Style Dictionary](https://amzn.github.io/style-dictionary/), Madrig
 npm install madrigal
 ```
 
-Create a `madrigal.config.yaml`:
+If you have existing knowledge files, scan them to generate a starter config:
+
+```bash
+npx madrigal init
+```
+
+Or create a `madrigal.config.yaml` manually:
 
 ```yaml
 sources:
@@ -38,7 +44,7 @@ Create a knowledge file at `knowledge/contrast.md`:
 ---
 title: Color Contrast Requirements
 domain: accessibility
-severity: error
+weight: must
 tags:
   - a11y
   - wcag
@@ -66,7 +72,7 @@ for (const output of result.results) {
 
 ### Knowledge Units
 
-The atomic unit. Each `.md` file with frontmatter becomes a `KnowledgeUnit` with an id, title, body, domain, severity, tags, and provenance tracking.
+The atomic unit. Each `.md` file with frontmatter becomes a `KnowledgeUnit` with an id, title, body, domain, weight, tags, and provenance tracking.
 
 ### Domains
 
@@ -76,9 +82,21 @@ Logical groupings of knowledge (e.g., `accessibility`, `typography`, `layout`). 
 
 Organizational units that can inherit from each other. A brand can `include` other brands/groups, and brand-specific knowledge overrides globals with the same id.
 
-### Severity
+Units with `brand: shared` or `brand: global` (or no brand at all) are included for every brand — use these for org-wide rules that apply everywhere.
 
-Five levels: `error` > `warning` > `info` > `context` > `deprecated`. Severity controls enforcement behavior and output filtering.
+### Weight
+
+How strongly a unit should influence decisions. By default, five levels from highest to lowest:
+
+| Level | Meaning |
+|-------|---------|
+| `must` | Required — non-compliance is a defect |
+| `should` | Strong recommendation — deviate only with justification |
+| `may` | Guidance — a good default, but context matters |
+| `context` | Background — informational, not prescriptive |
+| `deprecated` | Being phased out — avoid in new work |
+
+You can define your own ordered levels in config (see [Field Mapping Guide](docs/field-mapping.md)).
 
 ### Formats
 
@@ -121,7 +139,29 @@ platforms:
     format: json-bundle    # Required: registered format name
     groupBy: brand         # Optional: brand | domain | system
     destination: out/      # Optional: output path
+
+# Weight levels — ordered highest to lowest importance
+# Defaults to: [must, should, may, context, deprecated]
+levels:
+  - must
+  - should
+  - may
+  - context
+  - deprecated
+
+# Map your existing frontmatter field names to Madrigal's normalized fields
+fieldMappings:
+  id: key              # Simple rename: use "key" field as the id
+  domain: category     # Simple rename: use "category" as domain
+  weight:              # Complex mapping: rename + translate values
+    from: status
+    values:
+      active: must
+      draft: context
+      deprecated: deprecated
 ```
+
+See the [Field Mapping Guide](docs/field-mapping.md) for a full reference.
 
 ## Knowledge File Format
 
@@ -130,8 +170,8 @@ platforms:
 title: Rule Title            # Required (or id)
 id: custom-id                # Optional, generated from filename if omitted
 domain: accessibility        # Optional, defaults to 'default'
-severity: error              # Optional: error|warning|info|context|deprecated
-brand: acme                  # Optional, omit for global rules
+weight: must                 # Optional: must|should|may|context|deprecated
+brand: acme                  # Optional, omit (or use 'shared') for global rules
 system: web                  # Optional
 tags:                        # Optional
   - a11y
@@ -139,6 +179,48 @@ tags:                        # Optional
 ---
 
 Markdown body content here.
+```
+
+## CLI
+
+```bash
+# Scan your knowledge files and generate a starter config
+madrigal init [--sources "**/*.md"] [--output madrigal.config.yaml] [--dry-run]
+
+# Build all platforms
+madrigal build [--config madrigal.config.yaml]
+
+# Validate config without building
+madrigal validate
+
+# Start MCP server
+madrigal serve [--bundle path/to/knowledge.json]
+```
+
+### `madrigal init`
+
+Scans your existing frontmatter, detects non-standard field names and value vocabularies, and generates a `madrigal.config.yaml` with suggested `fieldMappings` and `levels`. Run it once when adopting Madrigal — you won't need to rename your files.
+
+```
+$ madrigal init
+
+Scanning sources: **/*.md, **/*.yaml
+
+Scanned 47 files.
+
+Non-standard fields found (candidates for fieldMappings):
+  key (47 files) → id — e.g. color-contrast, type-scale
+  category (47 files) → domain — e.g. accessibility, typography
+  status (42 files) → weight — e.g. active, draft, deprecated
+
+Weight field detected: "status" with values: active, draft, deprecated
+  No known vocabulary match — review the suggested levels in the config.
+
+Domains: accessibility, typography, motion
+Brands: (none found)
+Kinds: (none found)
+
+Wrote suggested config to madrigal.config.yaml
 ```
 
 ## Plugin System
@@ -199,7 +281,7 @@ Load knowledge units from markdown files matching source globs.
 
 ### `resolveForBrand(options)`
 
-Resolve knowledge units for a specific brand, applying inheritance and severity overrides.
+Resolve knowledge units for a specific brand, applying inheritance and weight-based overrides.
 
 ### `validateConfig(config, formatNames?)`
 
@@ -227,6 +309,8 @@ await serveMcp({
   bundlePaths: [
     resolve(baseDir, '../other-repo/publish/to-artifactory/knowledge.json'),
   ],
+  // Optional: provide an Anthropic API key to enable AI-powered review synthesis
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });
 ```
 
@@ -264,6 +348,7 @@ ln -sf "$(pwd)/skills/{skill-name}/SKILL.md" ~/.claude/skills/{skill-name}/SKILL
 
 | Resource | Description |
 |----------|-------------|
+| [Field Mapping Guide](docs/field-mapping.md) | How to map your frontmatter to Madrigal's fields |
 | [CODEOWNERS](./CODEOWNERS) | Project lead(s) |
 | [GOVERNANCE.md](./GOVERNANCE.md) | Project governance |
 | [LICENSE](./LICENSE) | Apache License, Version 2.0 |

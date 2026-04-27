@@ -3,10 +3,10 @@ import { join, relative } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MadrigalConfig } from './config.js';
 import { loadConfig } from './config.js';
-import type { Enforcement } from './enforcement.js';
 import { loadKnowledge } from './loader.js';
 import type { KnowledgeUnit } from './schema/index.js';
 import { BM25Index } from './search/bm25.js';
+import type { Weight } from './weight.js';
 
 /**
  * A function that sends a prompt to an LLM and returns the text response.
@@ -23,8 +23,8 @@ export interface ProposeOptions {
   domain?: string;
   /** Hint: target brand (omit for global) */
   brand?: string;
-  /** Hint: enforcement level */
-  enforcement?: Enforcement;
+  /** Hint: weight level */
+  weight?: string;
   /** If true, decompose input into multiple KUs */
   batch?: boolean;
   /** Base directory (defaults to cwd) */
@@ -35,7 +35,7 @@ export interface ProposeResult {
   filePath: string;
   title: string;
   domain: string;
-  enforcement: string;
+  weight: string;
   tags: string[];
   related: Array<{ id: string; reason: string }>;
   skipped: boolean;
@@ -47,7 +47,7 @@ export interface ProposedUnit {
   domain: string;
   brand?: string;
   system?: string;
-  enforcement: string;
+  weight: string;
   tags: string[];
   body: string;
 }
@@ -99,7 +99,7 @@ export function buildPrompt(
   const existingList = existingUnits
     .map(
       (u) =>
-        `- ${u.id}: "${u.title}" (domain: ${u.domain}, enforcement: ${u.enforcement})`,
+        `- ${u.id}: "${u.title}" (domain: ${u.domain}, weight: ${u.weight})`,
     )
     .join('\n');
 
@@ -115,8 +115,7 @@ export function buildPrompt(
     hints.push(
       `Brand hint: ${options.brand} (place in brands/${options.brand}/ directory)`,
     );
-  if (options.enforcement)
-    hints.push(`Enforcement hint: ${options.enforcement}`);
+  if (options.weight) hints.push(`string hint: ${options.weight}`);
   if (!options.brand)
     hints.push(
       'No brand specified — this should be a global rule (no brand field in frontmatter)',
@@ -134,7 +133,7 @@ A knowledge unit is a single, atomic rule, guideline, or pattern stored as a mar
 
 Available domains: ${domains.join(', ')}
 Available brands: ${brands.join(', ')} (omit brand field for global rules)
-Enforcement levels: must (must follow, blocks CI), should (should follow), may (optional guidance), context (background)
+string levels: must (must follow, blocks CI), should (should follow), may (optional guidance), context (background)
 ${hints.join('\n')}
 
 ## Existing units in this repo
@@ -163,7 +162,7 @@ tags:
   - tag1
   - tag2
   - tag3
-enforcement: ${options.enforcement || 'should'}
+weight: ${options.weight || 'should'}
 provenance:
   origin: system-proposed
   confidence: 0.85
@@ -185,7 +184,7 @@ The body in markdown. Include:
 - Include Do/Don't examples when the guideline has concrete right/wrong applications
 - Use **Don't:** / **Do:** format (bold, with colon) for example pairs
 - Tags should be 3-5 specific terms, not generic
-- Enforcement: use "must" only for compliance/legal/accessibility violations. Use "should" for best practices. Use "may" for suggestions and reference patterns.
+- string: use "must" only for compliance/legal/accessibility violations. Use "should" for best practices. Use "may" for suggestions and reference patterns.
 - Do NOT duplicate an existing unit. If the input overlaps with an existing unit, note it but still create the new unit focused on the distinct aspect.
 
 ## Input to process
@@ -221,7 +220,7 @@ function formatUnitAsFile(unit: KnowledgeUnit): string {
   if (unit.brand) frontmatter.brand = unit.brand;
   if (unit.system) frontmatter.system = unit.system;
   frontmatter.tags = unit.tags;
-  frontmatter.enforcement = unit.enforcement;
+  frontmatter.weight = unit.weight;
   frontmatter.provenance = unit.provenance;
 
   const yaml = stringifyYaml(frontmatter);
@@ -245,8 +244,8 @@ export function parseProposedUnits(response: string): ProposedUnit[] {
     const domain = String(fm.domain || 'content');
     const brand = fm.brand ? String(fm.brand) : undefined;
     const system = fm.system ? String(fm.system) : undefined;
-    // Support both 'enforcement' and legacy 'severity'
-    const enforcement = String(fm.enforcement || fm.severity || 'should');
+    // Support both 'weight' and legacy 'severity'
+    const weight = String(fm.weight || fm.severity || 'should');
     const tags = Array.isArray(fm.tags) ? fm.tags.map(String) : [];
 
     units.push({
@@ -255,7 +254,7 @@ export function parseProposedUnits(response: string): ProposedUnit[] {
       domain,
       brand,
       system,
-      enforcement,
+      weight,
       tags,
       body,
     });
@@ -301,7 +300,7 @@ function writeProposedUnit(
       filePath: relPath,
       title: unit.title,
       domain: unit.domain,
-      enforcement: unit.enforcement,
+      weight: unit.weight,
       tags: unit.tags,
       related: [],
       skipped: true,
@@ -320,7 +319,7 @@ function writeProposedUnit(
   for (const tag of unit.tags) {
     frontmatterLines.push(`  - ${tag}`);
   }
-  frontmatterLines.push(`enforcement: ${unit.enforcement}`);
+  frontmatterLines.push(`weight: ${unit.weight}`);
   frontmatterLines.push('provenance:');
   frontmatterLines.push('  origin: system-proposed');
   frontmatterLines.push('  confidence: 0.85');
@@ -339,7 +338,7 @@ function writeProposedUnit(
     filePath: relPath,
     title: unit.title,
     domain: unit.domain,
-    enforcement: unit.enforcement,
+    weight: unit.weight,
     tags: unit.tags,
     related,
     skipped: false,
