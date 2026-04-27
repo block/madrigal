@@ -140,7 +140,7 @@ describe('defaultWeight', () => {
 
 describe('applyFieldMappings', () => {
   it('simple rename: copies source field to target', () => {
-    const raw = { key: 'unit-1', title: 'My Rule' };
+    const raw: Record<string, unknown> = { key: 'unit-1', title: 'My Rule' };
     applyFieldMappings(raw, { id: 'key' });
     expect(raw.id).toBe('unit-1');
   });
