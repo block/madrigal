@@ -2,6 +2,24 @@
   "name": "madrigal",
   "version": "0.1.0",
   "description": "A config-driven, pluggable knowledge compiler inspired by Style Dictionary",
+  "license": "Apache-2.0",
+  "author": "Block, Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/block/madrigal.git"
+  },
+  "homepage": "https://github.com/block/madrigal#readme",
+  "bugs": {
+    "url": "https://github.com/block/madrigal/issues"
+  },
+  "keywords": [
+    "knowledge-compiler",
+    "knowledge-base",
+    "ai-agents",
+    "style-dictionary",
+    "rules",
+    "cli"
+  ],
   "type": "module",
   "packageManager": "pnpm@10.12.4",
   "main": "dist/index.js",
@@ -16,9 +34,12 @@
     }
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && cd src/dev/ui && npm run build",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & cd src/dev/ui && npm run dev",
@@ -29,12 +50,15 @@
     "format": "biome format --write .",
     "test": "vitest run",
     "clean": "rm -rf dist",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "prepublishOnly": "pnpm build",
     "prepare": "lefthook install"
   },
   "engines": {
     "node": ">=18"
   },
-  "license": "Apache-2.0",
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.27.0",
     "@modelcontextprotocol/sdk": ">=1.0.0",
@@ -61,6 +85,8 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
     "@biomejs/biome": "^2.4.10",
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.31.0",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@types/node": "^20.11.0",
     "lefthook": "^2.1.4",
