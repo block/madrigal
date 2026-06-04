@@ -32,9 +32,9 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --registry=https://registry.npmjs.org
 
-      - run: npm ci --prefix src/dev/ui
+      - run: npm ci --prefix src/dev/ui --no-audit --no-fund --registry=https://registry.npmjs.org --replace-registry-host=always
 
       - run: pnpm build
 
