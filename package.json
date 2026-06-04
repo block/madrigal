@@ -1,5 +1,5 @@
 {
-  "name": "madrigal",
+  "name": "@block/madrigal",
   "version": "0.1.0",
   "description": "A config-driven, pluggable knowledge compiler inspired by Style Dictionary",
   "license": "Apache-2.0",

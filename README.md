@@ -7,7 +7,7 @@ Inspired by [Style Dictionary](https://amzn.github.io/style-dictionary/), Madrig
 ## Quick Start
 
 ```bash
-npm install madrigal
+npm install @block/madrigal
 ```
 
 Create a `madrigal.config.yaml`:
@@ -52,7 +52,7 @@ All text must meet WCAG 2.1 AA contrast requirements:
 Build programmatically:
 
 ```typescript
-import { build } from 'madrigal';
+import { build } from '@block/madrigal';
 
 const result = await build();
 
@@ -146,7 +146,7 @@ Markdown body content here.
 ### Custom Formats
 
 ```typescript
-import { defaultRegistry, type Format } from 'madrigal';
+import { defaultRegistry, type Format } from '@block/madrigal';
 
 const myFormat: Format = {
   name: 'custom-html',
@@ -164,7 +164,7 @@ defaultRegistry.register(myFormat);
 Preprocessors transform knowledge units after loading but before compilation:
 
 ```typescript
-import { defaultPreprocessorRegistry, type Preprocessor } from 'madrigal';
+import { defaultPreprocessorRegistry, type Preprocessor } from '@block/madrigal';
 
 const enricher: Preprocessor = {
   name: 'tag-enricher',
@@ -211,7 +211,7 @@ Start a stdio MCP server that exposes five tools for querying the knowledge base
 `search_knowledge`, `get_knowledge_unit`, `list_knowledge_units`, `get_brand_rules`, `review_content`.
 
 ```typescript
-import { serveMcp } from 'madrigal';
+import { serveMcp } from '@block/madrigal';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

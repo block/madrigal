@@ -1,4 +1,4 @@
-# madrigal
+# @block/madrigal
 
 ## 0.1.0
 
