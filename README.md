@@ -260,6 +260,29 @@ mkdir -p ~/.claude/skills/{skill-name}/
 ln -sf "$(pwd)/skills/{skill-name}/SKILL.md" ~/.claude/skills/{skill-name}/SKILL.md
 ```
 
+## Release Workflow
+
+Madrigal uses [Changesets](https://github.com/changesets/changesets) for
+versioning and npm publishing.
+
+For a release-bearing change, run:
+
+```bash
+pnpm changeset
+```
+
+After the change lands on `main`, the `Release` GitHub Actions workflow creates
+a version PR when changesets are pending. When that version PR lands, the same
+workflow builds Madrigal and publishes it to npm with provenance. The workflow
+expects the npm automation token in `MADRIGAL_NPM_PUBLISH_TOKEN`.
+
+Manual release commands are also available:
+
+```bash
+pnpm version-packages
+pnpm release
+```
+
 ## Project Resources
 
 | Resource | Description |
