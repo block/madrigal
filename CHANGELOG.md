@@ -1,4 +1,4 @@
-# @block/madrigal
+# @anarchitecture/madrigal
 
 ## 0.1.0
 
