@@ -212,6 +212,15 @@ async function buildPlatform(
   if (platformConfig.groupBy) {
     const groups = groupUnitsBy(units, platformConfig.groupBy);
 
+    // Ensure all configured brands get a group even without brand-specific units
+    if (platformConfig.groupBy === 'brand') {
+      for (const brandName of Object.keys(config.brands)) {
+        if (!groups.has(brandName)) {
+          groups.set(brandName, []);
+        }
+      }
+    }
+
     for (const [groupKey, groupUnits] of groups) {
       // If grouping by brand, also resolve includes/overrides
       const resolvedUnits =
