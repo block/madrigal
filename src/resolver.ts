@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { MadrigalConfig } from './config.js';
-import type { Enforcement } from './enforcement.js';
+import { type Enforcement, parseEnforcement } from './enforcement.js';
 import type { KnowledgeUnit } from './schema/index.js';
 
 /**
@@ -164,13 +164,39 @@ function loadOverrides(brand: string, baseDir: string): EnforcementOverride[] {
         const content = readFileSync(overridePath, 'utf-8');
         const parsed = parseYaml(content) as Record<string, unknown>;
         if (parsed.overrides && Array.isArray(parsed.overrides)) {
-          for (const entry of parsed.overrides) {
-            const raw = entry as Record<string, unknown>;
+          const validFields = new Set([
+            'id',
+            'enforcement',
+            'severity',
+            'reason',
+          ]);
+          for (const override of parsed.overrides) {
+            const obj = override as unknown as Record<string, unknown>;
+            for (const key of Object.keys(obj)) {
+              if (!validFields.has(key)) {
+                console.warn(
+                  `Warning: unknown field "${key}" in override at ${overridePath}. ` +
+                    `Expected fields: ${[...validFields].join(', ')}. ` +
+                    (key === 'knowledge_unit_id' ? 'Did you mean "id"?' : ''),
+                );
+              }
+            }
+
+            const rawEnforcement = obj.enforcement || obj.severity;
+            if (!obj.id || !rawEnforcement) continue;
+
+            const enforcement = parseEnforcement(String(rawEnforcement));
+            if (!enforcement) {
+              console.warn(
+                `Warning: invalid enforcement "${String(rawEnforcement)}" in override at ${overridePath}.`,
+              );
+              continue;
+            }
+
             overrides.push({
-              id: String(raw.id),
-              // Support both 'enforcement' and legacy 'severity' field
-              enforcement: (raw.enforcement || raw.severity) as Enforcement,
-              reason: raw.reason ? String(raw.reason) : undefined,
+              id: String(obj.id),
+              enforcement,
+              reason: obj.reason ? String(obj.reason) : undefined,
             });
           }
         }
