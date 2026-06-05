@@ -1,4 +1,4 @@
-import { compareEnforcement } from '../enforcement.js';
+import { compareEnforcement, effectiveEnforcement } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import type { Format, FormatOptions } from './registry.js';
 
@@ -100,8 +100,10 @@ function formatUnit(unit: KnowledgeUnit): string {
 /**
  * Get an enforcement badge.
  */
-function getEnforcementBadge(enforcement: string): string {
-  switch (enforcement) {
+function getEnforcementBadge(
+  enforcement: KnowledgeUnit['enforcement'],
+): string {
+  switch (effectiveEnforcement(enforcement)) {
     case 'must':
       return '[MUST]';
     case 'should':

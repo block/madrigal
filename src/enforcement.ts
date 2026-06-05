@@ -17,12 +17,25 @@ export const ENFORCEMENT_ORDER: Record<Enforcement, number> = {
   deprecated: 4,
 };
 
-export function compareEnforcement(a: Enforcement, b: Enforcement): number {
-  return ENFORCEMENT_ORDER[a] - ENFORCEMENT_ORDER[b];
+export function compareEnforcement(
+  a: Enforcement | undefined,
+  b: Enforcement | undefined,
+): number {
+  return enforcementRank(a) - enforcementRank(b);
 }
 
-export function isEnforceable(enforcement: Enforcement): boolean {
+export function isEnforceable(enforcement: Enforcement | undefined): boolean {
   return enforcement === 'must' || enforcement === 'should';
+}
+
+export function effectiveEnforcement(
+  enforcement: Enforcement | undefined,
+): Enforcement {
+  return enforcement || 'may';
+}
+
+export function enforcementRank(enforcement: Enforcement | undefined): number {
+  return ENFORCEMENT_ORDER[effectiveEnforcement(enforcement)];
 }
 
 /**

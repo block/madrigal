@@ -1,5 +1,6 @@
 import type { SearchAdapter } from '../adapters/search.js';
 import type { MadrigalConfig } from '../config.js';
+import { effectiveEnforcement } from '../enforcement.js';
 import { resolveForBrand } from '../resolver.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import type { ComplianceResult, ComplianceViolation } from './index.js';
@@ -72,6 +73,7 @@ export async function checkCompliance(
   const info: ComplianceViolation[] = [];
 
   for (const result of scored) {
+    const enforcement = effectiveEnforcement(result.unit.enforcement);
     const violation: ComplianceViolation = {
       knowledgeUnit: result.unit,
       matchResult: {
@@ -79,10 +81,10 @@ export async function checkCompliance(
         matched: true,
         confidence: result.score,
       },
-      message: `${result.unit.title} [${result.unit.enforcement.toUpperCase()}]`,
+      message: `${result.unit.title} [${enforcement.toUpperCase()}]`,
     };
 
-    switch (result.unit.enforcement) {
+    switch (enforcement) {
       case 'must':
         violations.push(violation);
         break;

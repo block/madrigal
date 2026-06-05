@@ -11,7 +11,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { MadrigalConfig } from '../config.js';
 import { loadConfig } from '../config.js';
-import { ENFORCEMENT_ORDER, type Enforcement } from '../enforcement.js';
+import {
+  type Enforcement,
+  effectiveEnforcement,
+  enforcementRank,
+} from '../enforcement.js';
 import { loadKnowledge } from '../loader.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25SearchAdapter } from '../search/adapter.js';
@@ -174,13 +178,14 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
 
       const lines = results.map((u) => {
         const tags = u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : '';
+        const enforcement = effectiveEnforcement(u.enforcement);
         // Include a short excerpt from the body (first 150 chars) for context
         const excerpt = u.body
           .replace(/^#+\s+/gm, '')
           .replace(/\n+/g, ' ')
           .trim()
           .slice(0, 150);
-        return `- [${u.enforcement.toUpperCase()}] **${u.id}**${tags}\n  ${u.title}${excerpt ? `\n  _${excerpt}…_` : ''}`;
+        return `- [${enforcement.toUpperCase()}] **${u.id}**${tags}\n  ${u.title}${excerpt ? `\n  _${excerpt}…_` : ''}`;
       });
 
       return {
@@ -216,9 +221,9 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
 
       const meta = [
         `**ID:** ${unit.id}`,
-        `**Domain:** ${unit.domain}`,
+        unit.domain ? `**Domain:** ${unit.domain}` : null,
         `**Kind:** ${unit.kind}`,
-        `**Enforcement:** ${unit.enforcement}`,
+        `**Enforcement:** ${effectiveEnforcement(unit.enforcement)}`,
         `**Tags:** ${unit.tags.join(', ')}`,
         unit.brand ? `**Brand:** ${unit.brand}` : null,
         unit.system ? `**System:** ${unit.system}` : null,
@@ -258,18 +263,19 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
           (u) => isGlobal(u.brand) || u.brand === brand,
         );
       if (enforcement)
-        filtered = filtered.filter((u) => u.enforcement === enforcement);
+        filtered = filtered.filter(
+          (u) => effectiveEnforcement(u.enforcement) === enforcement,
+        );
 
       filtered.sort(
         (a, b) =>
-          (ENFORCEMENT_ORDER[a.enforcement] ?? 99) -
-          (ENFORCEMENT_ORDER[b.enforcement] ?? 99),
+          enforcementRank(a.enforcement) - enforcementRank(b.enforcement),
       );
 
       const text = filtered
         .map(
           (u) =>
-            `- **${u.id}** [${u.enforcement.toUpperCase()}]: ${u.title} (${u.tags.join(', ')})`,
+            `- **${u.id}** [${effectiveEnforcement(u.enforcement).toUpperCase()}]: ${u.title} (${u.tags.join(', ')})`,
         )
         .join('\n');
 
@@ -312,22 +318,15 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       }
 
       // Sort by enforcement (must first), then title
-      const order: Record<string, number> = {
-        must: 0,
-        should: 1,
-        may: 2,
-        context: 3,
-        deprecated: 4,
-      };
       brandUnits.sort(
         (a, b) =>
-          (order[a.enforcement] ?? 9) - (order[b.enforcement] ?? 9) ||
+          enforcementRank(a.enforcement) - enforcementRank(b.enforcement) ||
           a.title.localeCompare(b.title),
       );
 
       const lines = brandUnits.map(
         (u) =>
-          `- [${u.enforcement.toUpperCase()}] **${u.id}** — ${u.title}${u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : ''}`,
+          `- [${effectiveEnforcement(u.enforcement).toUpperCase()}] **${u.id}** — ${u.title}${u.tags.length ? ` (${u.tags.slice(0, 3).join(', ')})` : ''}`,
       );
 
       const text = `${brandUnits.length} knowledge unit(s) for brand "${brand}":\n\n${lines.join('\n')}\n\nUse get_knowledge_unit(id) to read the full content of any unit.`;
@@ -373,11 +372,12 @@ export async function serveMcp(options: ServeOptions = {}): Promise<void> {
       const rulesText = scored
         .map((r) => {
           const brandTag = r.unit.brand ? ` [${r.unit.brand}]` : '';
+          const enforcement = effectiveEnforcement(r.unit.enforcement);
           const excerpt =
             r.unit.body.length > EXCERPT_CHARS
               ? `${r.unit.body.slice(0, EXCERPT_CHARS)}\n[…truncated]`
               : r.unit.body;
-          return `### ${r.unit.title} [${r.unit.enforcement.toUpperCase()}]${brandTag}\n**ID:** ${r.unit.id}\n\n${excerpt}`;
+          return `### ${r.unit.title} [${enforcement.toUpperCase()}]${brandTag}\n**ID:** ${r.unit.id}\n\n${excerpt}`;
         })
         .join('\n\n---\n\n');
 

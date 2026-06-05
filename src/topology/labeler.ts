@@ -162,7 +162,7 @@ export function fallbackClusterNames(
   for (let c = 0; c < nClusters; c++) {
     const domains = units
       .filter((_, i) => labels[i] === c)
-      .map((u) => u.domain);
+      .map((u) => u.domain || 'default');
     if (domains.length > 0) {
       const counts = new Map<string, number>();
       for (const d of domains) counts.set(d, (counts.get(d) ?? 0) + 1);

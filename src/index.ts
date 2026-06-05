@@ -22,12 +22,18 @@ export { formatReport } from './compliance/report.js';
 export type {
   BrandConfig,
   DomainConfig,
+  IdSchemaConfig,
   KindConfig,
+  KindSchemaConfig,
   MadrigalConfig,
   PlatformConfig,
+  RelationshipSchemaConfig,
+  SchemaConfig,
+  TitleSchemaConfig,
   ValidationError,
   ValidationResult,
   ValidationWarning,
+  VocabularyConfig,
 } from './config.js';
 export {
   getBrandNames,
@@ -42,6 +48,8 @@ export type { Enforcement } from './enforcement.js';
 export {
   compareEnforcement,
   ENFORCEMENT_ORDER,
+  effectiveEnforcement,
+  enforcementRank,
   isEnforceable,
   parseEnforcement,
 } from './enforcement.js';
@@ -130,6 +138,7 @@ export type {
   CreateKnowledgeUnit,
   Domain,
   KnowledgeFrontmatter,
+  KnowledgeRelationship,
   KnowledgeUnit,
   KnowledgeUnitWithEmbedding,
   UpdateKnowledgeUnit,

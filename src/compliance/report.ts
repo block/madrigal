@@ -1,3 +1,4 @@
+import { type Enforcement, effectiveEnforcement } from '../enforcement.js';
 import type {
   ComplianceResult,
   ComplianceViolation,
@@ -84,7 +85,8 @@ function formatViolationMd(
   options: ReportOptions,
 ): string {
   const score = v.matchResult.confidence.toFixed(2);
-  let line = `- **${v.knowledgeUnit.title}** [${v.knowledgeUnit.enforcement.toUpperCase()}] — relevance: ${score}`;
+  const enforcement = effectiveEnforcement(v.knowledgeUnit.enforcement);
+  let line = `- **${v.knowledgeUnit.title}** [${enforcement.toUpperCase()}] — relevance: ${score}`;
 
   if (options.includeSuggestions) {
     // Include a brief excerpt from the rule body as guidance
@@ -114,7 +116,7 @@ function violationToJson(v: ComplianceViolation) {
   return {
     unitId: v.knowledgeUnit.id,
     title: v.knowledgeUnit.title,
-    enforcement: v.knowledgeUnit.enforcement,
+    enforcement: effectiveEnforcement(v.knowledgeUnit.enforcement),
     confidence: v.matchResult.confidence,
     message: v.message,
     tags: v.knowledgeUnit.tags,
@@ -147,7 +149,7 @@ function formatSarif(result: ComplianceResult): string {
     },
     properties: {
       tags: v.knowledgeUnit.tags,
-      enforcement: v.knowledgeUnit.enforcement,
+      enforcement: effectiveEnforcement(v.knowledgeUnit.enforcement),
     },
   }));
 
@@ -182,9 +184,9 @@ function formatSarif(result: ComplianceResult): string {
 }
 
 function enforcementToSarifLevel(
-  enforcement: string,
+  enforcement: Enforcement | undefined,
 ): 'error' | 'warning' | 'note' {
-  switch (enforcement) {
+  switch (effectiveEnforcement(enforcement)) {
     case 'must':
       return 'error';
     case 'should':

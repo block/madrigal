@@ -1,8 +1,8 @@
 # Madrigal
 
-A config-driven, pluggable knowledge compiler. Madrigal transforms structured knowledge (markdown files with frontmatter) into multiple output formats — JSON bundles, AI skill files, rule sets, and more.
+A config-driven, pluggable knowledge compiler. Madrigal transforms structured knowledge (markdown files with frontmatter) into normalized, schema-aware output formats - JSON bundles, AI skill files, rule sets, and more.
 
-Inspired by [Style Dictionary](https://amzn.github.io/style-dictionary/), Madrigal applies the same "define once, compile everywhere" philosophy to design knowledge, coding guidelines, and organizational rules.
+Inspired by [Style Dictionary](https://amzn.github.io/style-dictionary/), Madrigal applies the same "define once, compile everywhere" philosophy to knowledge bases, research repositories, coding guidelines, design systems, and organizational rules. Consumers own the domain vocabulary; Madrigal owns reliable parsing, normalization, linting, and compilation.
 
 ## Quick Start
 
@@ -16,37 +16,50 @@ Create a `madrigal.config.yaml`:
 sources:
   - "knowledge/**/*.md"
 
-domains:
-  accessibility:
-    description: "Accessibility guidelines"
+schema:
+  preserveUnknownFrontmatter: true
+  id:
+    field: id
+    strategy: path
+  kind:
+    field: type
+    default: record
+    byPath:
+      "knowledge/studies/**": study
+  title:
+    field: title
+  relationships:
+    wikilinks: true
 
-brands:
-  acme:
-    include:
-      - global
+kinds:
+  study:
+    required: [title, methodology, research_period, source_url]
+  theme: {}
+
+vocabularies:
+  durability:
+    values: [evergreen, timebound]
 
 platforms:
-  skill-file:
-    format: skill-md
   json-export:
     format: json-bundle
 ```
 
-Create a knowledge file at `knowledge/contrast.md`:
+Create a knowledge file at `knowledge/studies/checkout-trust.md`:
 
 ```markdown
 ---
-title: Color Contrast Requirements
-domain: accessibility
-severity: error
+title: Checkout Trust Study
+type: study
+methodology: Interviews
+research_period: Q1
+source_url: https://example.com/research
+durability: evergreen
 tags:
-  - a11y
-  - wcag
+  - onboarding
 ---
 
-All text must meet WCAG 2.1 AA contrast requirements:
-- Normal text: minimum 4.5:1 contrast ratio
-- Large text: minimum 3:1 contrast ratio
+Participants connected onboarding clarity to [[Trust Signals]].
 ```
 
 Build programmatically:
@@ -66,19 +79,31 @@ for (const output of result.results) {
 
 ### Knowledge Units
 
-The atomic unit. Each `.md` file with frontmatter becomes a `KnowledgeUnit` with an id, title, body, domain, severity, tags, and provenance tracking.
+The atomic unit. Each `.md` file with frontmatter becomes a normalized `KnowledgeUnit` with an id, title, body, kind, tags, source path, raw `frontmatter`, normalized `attributes`, extracted `relationships`, and provenance tracking. Optional rule-oriented fields such as `domain`, `brand`, `system`, and `enforcement` are preserved when present.
+
+### Schema
+
+Consumer-owned mapping rules that tell Madrigal how to read a knowledge base: where IDs, titles, kinds, and relationships come from, how path-based fallback should work, and whether unknown frontmatter should be preserved.
+
+### Kinds
+
+Consumer-defined structural types (for example `study`, `theme`, `competitor`, or `rule`). Kinds can declare required fields for linting and strict validation.
+
+### Vocabularies
+
+Consumer-owned controlled terms and aliases. Madrigal can canonicalize configured fields in `attributes` while preserving the raw parsed value in `frontmatter`.
 
 ### Domains
 
-Logical groupings of knowledge (e.g., `accessibility`, `typography`, `layout`). Defined in config and validated at load time.
+Optional logical groupings of knowledge (e.g., `accessibility`, `typography`, `layout`). Defined in config and validated at load time when present.
 
 ### Brands
 
 Organizational units that can inherit from each other. A brand can `include` other brands/groups, and brand-specific knowledge overrides globals with the same id.
 
-### Severity
+### Enforcement
 
-Five levels: `error` > `warning` > `info` > `context` > `deprecated`. Severity controls enforcement behavior and output filtering.
+Optional rule-oriented strength: `must`, `should`, `may`, `context`, or `deprecated`. Existing `severity` frontmatter is still accepted as a legacy alias for rule-focused workflows.
 
 ### Formats
 
@@ -101,6 +126,36 @@ Named build targets in config. Each platform specifies a format and optional gro
 # Glob patterns for knowledge source files
 sources:
   - "knowledge/**/*.md"
+
+# Schema mapping and normalization
+schema:
+  preserveUnknownFrontmatter: true
+  id:
+    field: id              # Explicit frontmatter ID field
+    strategy: path         # path | filename
+  kind:
+    field: type            # Frontmatter field used as the unit kind
+    default: record
+    byPath:
+      "knowledge/studies/**": study
+  title:
+    field: title
+  relationships:
+    wikilinks: true        # Extract [[Target]] and [[Target|Label]]
+
+# Kind definitions and required fields
+kinds:
+  <name>:
+    required:
+      - title
+
+# Controlled vocabularies and aliases
+vocabularies:
+  <field>:
+    values:
+      - canonical-value
+    aliases:
+      old-value: canonical-value
 
 # Domain definitions
 domains:
@@ -127,18 +182,17 @@ platforms:
 
 ```markdown
 ---
-title: Rule Title            # Required (or id)
-id: custom-id                # Optional, generated from filename if omitted
-domain: accessibility        # Optional, defaults to 'default'
-severity: error              # Optional: error|warning|info|context|deprecated
-brand: acme                  # Optional, omit for global rules
-system: web                  # Optional
-tags:                        # Optional
-  - a11y
-  - wcag
+title: Record Title          # Field name is configurable
+id: custom-id                # Optional, generated from path by default
+type: study                  # Field name is configurable
+source_url: https://example.com/source
+durability: evergreen        # Consumer-owned attribute
+enforcement: should          # Optional for rule-oriented records
+tags:
+  - research
 ---
 
-Markdown body content here.
+Markdown body content here, including optional [[Wiki Links]].
 ```
 
 ## Plugin System

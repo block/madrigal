@@ -15,7 +15,57 @@ export interface DomainConfig {
  */
 export interface KindConfig {
   /** Human-readable description of the kind */
-  description: string;
+  description?: string;
+  /** Consumer-defined required frontmatter fields for this kind */
+  required?: string[];
+}
+
+export type IdStrategy = 'path' | 'filename';
+
+export interface IdSchemaConfig {
+  /** Frontmatter field to use for explicit IDs */
+  field?: string;
+  /** Generated ID strategy when no explicit ID exists */
+  strategy?: IdStrategy;
+}
+
+export interface KindSchemaConfig {
+  /** Frontmatter field to use as the kind */
+  field?: string;
+  /** Default kind when no field/path rule matches */
+  default?: string;
+  /** Glob patterns mapped to kind names */
+  byPath?: Record<string, string>;
+}
+
+export interface TitleSchemaConfig {
+  /** Frontmatter field to use as the title */
+  field?: string;
+}
+
+export interface RelationshipSchemaConfig {
+  /** Extract Obsidian-style [[Wiki Links]] from markdown bodies */
+  wikilinks?: boolean;
+}
+
+export interface SchemaConfig {
+  /** Preserve non-core frontmatter fields in attributes */
+  preserveUnknownFrontmatter?: boolean;
+  /** ID mapping and generation rules */
+  id?: IdSchemaConfig;
+  /** Kind mapping rules */
+  kind?: KindSchemaConfig;
+  /** Title mapping rules */
+  title?: TitleSchemaConfig;
+  /** Relationship extraction rules */
+  relationships?: RelationshipSchemaConfig;
+}
+
+export interface VocabularyConfig {
+  /** Allowed canonical values */
+  values?: string[];
+  /** Raw value to canonical value mapping */
+  aliases?: Record<string, string>;
 }
 
 /**
@@ -47,6 +97,10 @@ export interface PlatformConfig {
 export interface MadrigalConfig {
   /** Glob patterns for knowledge source files */
   sources: string[];
+  /** Consumer-owned schema mapping and linting config */
+  schema: SchemaConfig;
+  /** Consumer-owned controlled vocabularies */
+  vocabularies: Record<string, VocabularyConfig>;
   /** Domain definitions (key is domain name) */
   domains: Record<string, DomainConfig>;
   /** Kind definitions (key is kind name, structural types of knowledge) */
@@ -146,10 +200,39 @@ function normalizeConfig(raw: unknown, _baseDir: string): MadrigalConfig {
 
   return {
     sources: config.sources as string[],
+    schema: normalizeSchemaConfig(config.schema),
+    vocabularies:
+      (config.vocabularies as Record<string, VocabularyConfig>) || {},
     domains: (config.domains as Record<string, DomainConfig>) || {},
     kinds: (config.kinds as Record<string, KindConfig>) || {},
     brands: (config.brands as Record<string, BrandConfig>) || {},
     platforms: (config.platforms as Record<string, PlatformConfig>) || {},
+  };
+}
+
+function normalizeSchemaConfig(raw: unknown): SchemaConfig {
+  const schema = (raw && typeof raw === 'object' ? raw : {}) as SchemaConfig;
+
+  return {
+    preserveUnknownFrontmatter:
+      schema.preserveUnknownFrontmatter !== undefined
+        ? schema.preserveUnknownFrontmatter
+        : true,
+    id: {
+      field: schema.id?.field || 'id',
+      strategy: schema.id?.strategy || 'path',
+    },
+    kind: {
+      field: schema.kind?.field || 'kind',
+      default: schema.kind?.default || 'rule',
+      byPath: schema.kind?.byPath || {},
+    },
+    title: {
+      field: schema.title?.field || 'title',
+    },
+    relationships: {
+      wikilinks: schema.relationships?.wikilinks || false,
+    },
   };
 }
 
@@ -182,6 +265,34 @@ export function validateConfig(
         path: `domains.${name}`,
         message: 'Domain is missing a description',
       });
+    }
+  }
+
+  const idStrategy = config.schema.id?.strategy;
+  if (idStrategy && !['path', 'filename'].includes(idStrategy)) {
+    errors.push({
+      path: 'schema.id.strategy',
+      message: 'ID strategy must be "path" or "filename"',
+    });
+  }
+
+  for (const [field, vocabulary] of Object.entries(config.vocabularies)) {
+    const values = new Set(vocabulary.values || []);
+    if (vocabulary.aliases) {
+      for (const [alias, canonical] of Object.entries(vocabulary.aliases)) {
+        if (alias === canonical) {
+          warnings.push({
+            path: `vocabularies.${field}.aliases.${alias}`,
+            message: 'Alias maps to itself',
+          });
+        }
+        if (values.size > 0 && !values.has(canonical)) {
+          errors.push({
+            path: `vocabularies.${field}.aliases.${alias}`,
+            message: `Alias maps to unknown canonical value "${canonical}"`,
+          });
+        }
+      }
     }
   }
 
