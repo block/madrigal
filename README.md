@@ -319,16 +319,23 @@ ln -sf "$(pwd)/skills/{skill-name}/SKILL.md" ~/.claude/skills/{skill-name}/SKILL
 Madrigal uses [Changesets](https://github.com/changesets/changesets) for
 versioning and npm publishing.
 
-For a release-bearing change, run:
+For a release-bearing change, include a changeset in the feature or fix PR:
 
 ```bash
 pnpm changeset
 ```
 
 After the change lands on `main`, the `Release` GitHub Actions workflow creates
-a version PR when changesets are pending. When that version PR lands, the same
-workflow builds Madrigal and publishes it to npm with provenance. The workflow
-expects the npm automation token in `MADRIGAL_NPM_PUBLISH_TOKEN`.
+a `chore: version packages` PR when changesets are pending. When that generated
+version PR lands, the same workflow builds Madrigal and publishes it to npm with
+provenance. For normal releases, do not edit `package.json` versions or
+`CHANGELOG.md` directly; let the generated version PR own those updates.
+
+The direct publish from PR #21 was a bootstrap correction: `0.1.0` was already
+checked in but unpublished under the corrected `@anarchitecture/madrigal` name.
+Future releases should go through a pending changeset and the generated version
+PR. The workflow expects the npm automation token in
+`MADRIGAL_NPM_PUBLISH_TOKEN`.
 
 Manual release commands are also available:
 
