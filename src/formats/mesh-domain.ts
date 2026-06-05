@@ -1,3 +1,4 @@
+import { effectiveEnforcement } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import type { Format, FormatOptions } from './registry.js';
 
@@ -46,12 +47,14 @@ export const meshDomainFormat: Format = {
         id: unit.id,
         title: unit.title,
         content: unit.body,
-        domain: unit.domain,
-        enforcement: unit.enforcement,
+        domain: unit.domain || 'default',
+        enforcement: effectiveEnforcement(unit.enforcement),
         tags: unit.tags,
         metadata: {
           kind: unit.kind,
+          frontmatter: unit.frontmatter,
           attributes: unit.attributes,
+          relationships: unit.relationships,
           brand: unit.brand,
           system: unit.system,
           sourcePath: unit.sourcePath,

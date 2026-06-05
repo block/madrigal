@@ -216,11 +216,16 @@ async function runValidate() {
   if (loadResult.warnings.length > 0) {
     console.warn(`\n${loadResult.warnings.length} load warning(s):`);
     for (const w of loadResult.warnings)
-      console.warn(`  ${w.filePath}: ${w.message}`);
+      console.warn(
+        `  ${w.filePath}: ${w.severity === 'error' ? '[error] ' : ''}${w.message}`,
+      );
   }
 
+  const lintErrors = loadResult.warnings.filter((w) => w.severity === 'error');
   const hasErrors =
-    validation.errors.length > 0 || loadResult.errors.length > 0;
+    validation.errors.length > 0 ||
+    loadResult.errors.length > 0 ||
+    lintErrors.length > 0;
   if (hasErrors) {
     console.error('\nValidation failed.');
     process.exit(1);

@@ -16,7 +16,9 @@ function makeUnit(
     kind: 'rule',
     tags: [],
     enforcement: 'may',
+    frontmatter: {},
     attributes: {},
+    relationships: [],
     provenance: { origin: 'human-authored', confidence: 1.0 },
     ...overrides,
   };
@@ -24,6 +26,14 @@ function makeUnit(
 
 const baseConfig: MadrigalConfig = {
   sources: ['**/*.md'],
+  schema: {
+    preserveUnknownFrontmatter: true,
+    id: { field: 'id', strategy: 'path' },
+    kind: { field: 'kind', default: 'rule', byPath: {} },
+    title: { field: 'title' },
+    relationships: { wikilinks: false },
+  },
+  vocabularies: {},
   domains: { default: { description: 'Default' } },
   kinds: { rule: { description: 'Rule' } },
   brands: {

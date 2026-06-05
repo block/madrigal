@@ -9,12 +9,31 @@ import type { Provenance } from '../provenance.js';
 export type Domain = string;
 
 /**
+ * Relationship extracted from source content or frontmatter.
+ * Consumers define relationship semantics; Madrigal preserves and resolves them.
+ */
+export interface KnowledgeRelationship {
+  /** Relationship kind, e.g. wikilink */
+  type: string;
+  /** Raw target as written in the source */
+  target: string;
+  /** Optional display label, e.g. the label in [[Target|Label]] */
+  label?: string;
+  /** Resolved target knowledge unit ID when Madrigal can resolve it */
+  targetId?: string;
+  /** Whether this relationship could be resolved to a loaded unit */
+  resolved: boolean;
+}
+
+/**
  * Frontmatter fields expected in knowledge markdown files.
  */
 export interface KnowledgeFrontmatter {
+  [key: string]: unknown;
   id?: string;
   title?: string;
   domain?: string;
+  type?: string;
   kind?: string;
   system?: string;
   brand?: string;
@@ -27,11 +46,12 @@ export interface KnowledgeFrontmatter {
 }
 
 /**
- * A KnowledgeUnit is the atomic unit of design knowledge.
- * It represents a single rule, guideline, pattern, or insight.
+ * A KnowledgeUnit is Madrigal's normalized representation of a source record.
+ * Consumer configs define domain terms; Madrigal preserves raw metadata and
+ * normalizes the fields needed for compilation, linting, and retrieval.
  */
 export interface KnowledgeUnit {
-  /** Unique identifier (UUID) */
+  /** Unique identifier */
   id: string;
 
   /** Human-readable title */
@@ -40,11 +60,29 @@ export interface KnowledgeUnit {
   /** Markdown content describing the knowledge */
   body: string;
 
-  /** Knowledge domain this unit belongs to */
-  domain: Domain;
-
-  /** Structural type of knowledge (e.g., 'rule', 'glossary', 'rubric', 'template') */
+  /** Structural type of knowledge (consumer-defined, e.g. study, theme, rule) */
   kind: string;
+
+  /** Searchable tags for categorization */
+  tags: string[];
+
+  /** Relative path to the source file */
+  sourcePath?: string;
+
+  /** Raw parsed frontmatter, preserved exactly as parsed from the source */
+  frontmatter: Record<string, unknown>;
+
+  /** Open metadata for domain-specific attributes after normalization */
+  attributes: Record<string, unknown>;
+
+  /** Extracted relationships, such as wiki links */
+  relationships: KnowledgeRelationship[];
+
+  /** Origin and approval tracking */
+  provenance: Provenance;
+
+  /** Knowledge domain this unit belongs to, when configured/present */
+  domain?: Domain;
 
   /** Design system this applies to (e.g., 'market', 'arcade', 'wave') */
   system?: string;
@@ -52,20 +90,8 @@ export interface KnowledgeUnit {
   /** Brand this applies to, null for global rules */
   brand?: string;
 
-  /** Searchable tags for categorization */
-  tags: string[];
-
-  /** Enforcement level */
-  enforcement: Enforcement;
-
-  /** Open metadata for domain-specific attributes (surfaces, audiences, etc.) */
-  attributes: Record<string, unknown>;
-
-  /** Origin and approval tracking */
-  provenance: Provenance;
-
-  /** Relative path to the source file */
-  sourcePath?: string;
+  /** Enforcement level for rule-oriented consumers */
+  enforcement?: Enforcement;
 
   /** ISO 8601 timestamp of creation */
   createdAt?: string;
@@ -81,13 +107,15 @@ export interface KnowledgeUnit {
 export interface CreateKnowledgeUnit {
   title: string;
   body: string;
-  domain: Domain;
+  domain?: Domain;
   kind?: string;
   system?: string;
   brand?: string;
   tags: string[];
-  enforcement: Enforcement;
+  enforcement?: Enforcement;
+  frontmatter?: Record<string, unknown>;
   attributes?: Record<string, unknown>;
+  relationships?: KnowledgeRelationship[];
   provenance: Provenance;
 }
 
@@ -104,7 +132,9 @@ export interface UpdateKnowledgeUnit {
   brand?: string;
   tags?: string[];
   enforcement?: Enforcement;
+  frontmatter?: Record<string, unknown>;
   attributes?: Record<string, unknown>;
+  relationships?: KnowledgeRelationship[];
   provenance?: Provenance;
 }
 

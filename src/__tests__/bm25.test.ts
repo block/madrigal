@@ -14,7 +14,9 @@ function makeUnit(
     kind: 'rule',
     tags: [],
     enforcement: 'should' as Enforcement,
+    frontmatter: {},
     attributes: {},
+    relationships: [],
     provenance: { origin: 'human-authored', confidence: 1.0 },
     ...overrides,
   };

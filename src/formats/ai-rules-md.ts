@@ -1,4 +1,8 @@
-import { compareEnforcement, isEnforceable } from '../enforcement.js';
+import {
+  compareEnforcement,
+  effectiveEnforcement,
+  isEnforceable,
+} from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import type { Format, FormatOptions } from './registry.js';
 
@@ -40,8 +44,12 @@ export const aiRulesMdFormat: Format = {
     );
 
     // Group by enforcement
-    const musts = enforceableUnits.filter((u) => u.enforcement === 'must');
-    const shoulds = enforceableUnits.filter((u) => u.enforcement === 'should');
+    const musts = enforceableUnits.filter(
+      (u) => effectiveEnforcement(u.enforcement) === 'must',
+    );
+    const shoulds = enforceableUnits.filter(
+      (u) => effectiveEnforcement(u.enforcement) === 'should',
+    );
 
     if (musts.length > 0) {
       lines.push('## MUST Follow');
@@ -69,7 +77,9 @@ export const aiRulesMdFormat: Format = {
 
     // Add context rules in a collapsed section
     const contextUnits = units.filter(
-      (u) => u.enforcement === 'context' || u.enforcement === 'may',
+      (u) =>
+        effectiveEnforcement(u.enforcement) === 'context' ||
+        effectiveEnforcement(u.enforcement) === 'may',
     );
     if (contextUnits.length > 0) {
       lines.push('## Additional Context');

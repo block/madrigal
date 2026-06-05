@@ -13,7 +13,10 @@ import { cors } from 'hono/cors';
 import { getState, loadState } from './state.js';
 import { resolveForBrand } from '../resolver.js';
 import { build, buildPlatformByName } from '../pipeline.js';
-import { ENFORCEMENT_ORDER } from '../enforcement.js';
+import {
+  effectiveEnforcement,
+  enforcementRank,
+} from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { generateTopology, createOpenAIProvider, createVoyageProvider, createProviderFromEnv, cosineSimilarity } from '../topology/index.js';
 import type { TopologyData, EmbeddingProvider } from '../topology/index.js';
@@ -59,8 +62,10 @@ export function createApp(baseDir: string): Hono {
     const byBrand: Record<string, number> = {};
 
     for (const u of units) {
-      byDomain[u.domain] = (byDomain[u.domain] || 0) + 1;
-      byEnforcement[u.enforcement] = (byEnforcement[u.enforcement] || 0) + 1;
+      const domain = u.domain || 'default';
+      const enforcement = effectiveEnforcement(u.enforcement);
+      byDomain[domain] = (byDomain[domain] || 0) + 1;
+      byEnforcement[enforcement] = (byEnforcement[enforcement] || 0) + 1;
       byKind[u.kind] = (byKind[u.kind] || 0) + 1;
       const brand = u.brand || 'global';
       byBrand[brand] = (byBrand[brand] || 0) + 1;
@@ -98,7 +103,10 @@ export function createApp(baseDir: string): Hono {
 
       let results = scored;
       if (kind) results = results.filter((r) => r.unit.kind === kind);
-      if (enforcement) results = results.filter((r) => r.unit.enforcement === enforcement);
+      if (enforcement)
+        results = results.filter(
+          (r) => effectiveEnforcement(r.unit.enforcement) === enforcement,
+        );
 
       const paged = results.slice(offset, offset + limit);
       return c.json({
@@ -111,12 +119,13 @@ export function createApp(baseDir: string): Hono {
     if (domain) filtered = filtered.filter((u) => u.domain === domain);
     if (brand) filtered = filtered.filter((u) => !u.brand || u.brand === brand);
     if (kind) filtered = filtered.filter((u) => u.kind === kind);
-    if (enforcement) filtered = filtered.filter((u) => u.enforcement === enforcement);
+    if (enforcement)
+      filtered = filtered.filter(
+        (u) => effectiveEnforcement(u.enforcement) === enforcement,
+      );
 
-    filtered.sort(
-      (a, b) =>
-        (ENFORCEMENT_ORDER[a.enforcement] ?? 99) -
-        (ENFORCEMENT_ORDER[b.enforcement] ?? 99),
+    filtered.sort((a, b) =>
+      enforcementRank(a.enforcement) - enforcementRank(b.enforcement),
     );
 
     return c.json({
@@ -142,7 +151,7 @@ export function createApp(baseDir: string): Hono {
       const resolvedUnit = resolved.find((u) => u.id === id);
       if (resolvedUnit) {
         brandResolutions[brandName] = {
-          enforcement: resolvedUnit.enforcement,
+          enforcement: effectiveEnforcement(resolvedUnit.enforcement),
           overridden: resolvedUnit.enforcement !== unit.enforcement,
         };
       }
@@ -212,7 +221,7 @@ export function createApp(baseDir: string): Hono {
       const original = units.find((u) => u.id === ru.id);
       return {
         ...ru,
-        _baseEnforcement: original?.enforcement ?? ru.enforcement,
+        _baseEnforcement: effectiveEnforcement(original?.enforcement ?? ru.enforcement),
         _overridden: original ? original.enforcement !== ru.enforcement : false,
       };
     });
@@ -240,13 +249,15 @@ export function createApp(baseDir: string): Hono {
     const domainMap = new Map<string, { count: number; byEnforcement: Record<string, number> }>();
 
     for (const u of units) {
-      let entry = domainMap.get(u.domain);
+      const domain = u.domain || 'default';
+      const enforcement = effectiveEnforcement(u.enforcement);
+      let entry = domainMap.get(domain);
       if (!entry) {
         entry = { count: 0, byEnforcement: {} };
-        domainMap.set(u.domain, entry);
+        domainMap.set(domain, entry);
       }
       entry.count++;
-      entry.byEnforcement[u.enforcement] = (entry.byEnforcement[u.enforcement] || 0) + 1;
+      entry.byEnforcement[enforcement] = (entry.byEnforcement[enforcement] || 0) + 1;
     }
 
     // Include config domains with zero units (coverage gaps)
@@ -661,7 +672,7 @@ export function createApp(baseDir: string): Hono {
       } else if (sortBy === 'title') {
         cmp = a.title.localeCompare(b.title);
       } else if (sortBy === 'domain') {
-        cmp = a.domain.localeCompare(b.domain);
+        cmp = (a.domain || 'default').localeCompare(b.domain || 'default');
       } else if (sortBy === 'origin') {
         cmp = a.provenance.origin.localeCompare(b.provenance.origin);
       }

@@ -4,7 +4,7 @@ import type {
   SearchAdapter,
   SemanticSearchOptions,
 } from '../adapters/search.js';
-import { ENFORCEMENT_ORDER } from '../enforcement.js';
+import { effectiveEnforcement, enforcementRank } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import { BM25Index } from './bm25.js';
 
@@ -45,8 +45,7 @@ export class BM25SearchAdapter implements SearchAdapter {
       // Sort by enforcement: must first
       results.sort(
         (a, b) =>
-          (ENFORCEMENT_ORDER[a.enforcement] ?? 99) -
-          (ENFORCEMENT_ORDER[b.enforcement] ?? 99),
+          enforcementRank(a.enforcement) - enforcementRank(b.enforcement),
       );
     }
 
@@ -83,17 +82,18 @@ export class BM25SearchAdapter implements SearchAdapter {
     }
 
     if (options?.minEnforcement) {
-      const minOrder = ENFORCEMENT_ORDER[options.minEnforcement] ?? 99;
+      const minOrder = enforcementRank(options.minEnforcement);
       results = results.filter(
-        (r) => (ENFORCEMENT_ORDER[r.unit.enforcement] ?? 99) <= minOrder,
+        (r) => enforcementRank(r.unit.enforcement) <= minOrder,
       );
     }
 
     // Apply enforcement boost: enforceable rules score slightly higher
     results = results.map((r) => {
       let boosted = r.score;
-      if (r.unit.enforcement === 'must') boosted *= 1.2;
-      else if (r.unit.enforcement === 'should') boosted *= 1.1;
+      const enforcement = effectiveEnforcement(r.unit.enforcement);
+      if (enforcement === 'must') boosted *= 1.2;
+      else if (enforcement === 'should') boosted *= 1.1;
       return { unit: r.unit, score: boosted };
     });
 
@@ -144,7 +144,9 @@ export class BM25SearchAdapter implements SearchAdapter {
 
     if (filter.enforcement && filter.enforcement.length > 0) {
       const allowed = new Set<string>(filter.enforcement);
-      results = results.filter((u) => allowed.has(u.enforcement));
+      results = results.filter((u) =>
+        allowed.has(effectiveEnforcement(u.enforcement)),
+      );
     }
 
     if (filter.kind) {

@@ -12,7 +12,9 @@ function makeUnit(
     kind: 'rule',
     tags: [],
     enforcement: 'may',
+    frontmatter: {},
     attributes: {},
+    relationships: [],
     provenance: { origin: 'human-authored', confidence: 1.0 },
     ...overrides,
   };

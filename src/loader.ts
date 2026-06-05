@@ -3,11 +3,15 @@ import { basename, extname, relative } from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 import { parse as parseYaml } from 'yaml';
-import type { MadrigalConfig } from './config.js';
+import type { MadrigalConfig, VocabularyConfig } from './config.js';
 import type { Enforcement } from './enforcement.js';
 import { parseEnforcement } from './enforcement.js';
 import { createFileProvenance } from './provenance.js';
-import type { KnowledgeFrontmatter, KnowledgeUnit } from './schema/index.js';
+import type {
+  KnowledgeFrontmatter,
+  KnowledgeRelationship,
+  KnowledgeUnit,
+} from './schema/index.js';
 
 /**
  * Options for loading knowledge units.
@@ -25,8 +29,10 @@ export interface LoadOptions {
  * Error that occurred while loading a file.
  */
 export interface LoadError {
-  /** Path to the file */
+  /** Path to the file or conflicting generated ID */
   filePath: string;
+  /** Machine-readable error category */
+  code?: string;
   /** Error message */
   message: string;
   /** Original error if available */
@@ -34,15 +40,21 @@ export interface LoadError {
 }
 
 /**
- * Warning about a loaded file.
+ * Warning or lint violation about a loaded file.
  */
 export interface LoadWarning {
   /** Path to the file */
   filePath: string;
+  /** Machine-readable warning category */
+  code?: string;
+  /** Severity. Validate treats "error" as failing; build warns and continues. */
+  severity?: 'warning' | 'error';
   /** Warning message */
   message: string;
   /** Field that caused the warning */
   field?: string;
+  /** Knowledge unit ID, when available */
+  unitId?: string;
 }
 
 /**
@@ -51,25 +63,41 @@ export interface LoadWarning {
 export interface LoadResult {
   /** Successfully loaded knowledge units */
   units: KnowledgeUnit[];
-  /** Files that failed to parse */
+  /** Files that failed to parse or invalid duplicate records that were excluded */
   errors: LoadError[];
-  /** Files with validation warnings */
+  /** Files with validation warnings or lint violations */
   warnings: LoadWarning[];
 }
 
+type ParsedUnit = KnowledgeUnit & {
+  _relationshipTargets?: Array<{
+    relationship: KnowledgeRelationship;
+    targetKey: string;
+  }>;
+};
+
+const CORE_FRONTMATTER_KEYS = new Set([
+  'id',
+  'title',
+  'domain',
+  'kind',
+  'type',
+  'system',
+  'brand',
+  'tags',
+  'enforcement',
+  'severity',
+  'attributes',
+  'provenance',
+  'body',
+  'entries',
+]);
+
 /**
- * Load knowledge units from markdown files.
- *
- * @param options - Load options including source patterns and config
- * @returns Loaded units with any errors and warnings
+ * Load knowledge units from markdown and YAML files.
  */
 export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
   const { sources, config, baseDir = process.cwd() } = options;
-  const units: KnowledgeUnit[] = [];
-  const errors: LoadError[] = [];
-  const warnings: LoadWarning[] = [];
-
-  // Find all matching files
   const files = await fg(sources, {
     cwd: baseDir,
     absolute: true,
@@ -77,408 +105,7 @@ export async function loadKnowledge(options: LoadOptions): Promise<LoadResult> {
     ignore: ['**/node_modules/**', '**/dist/**'],
   });
 
-  const domainNames = new Set(Object.keys(config.domains));
-  const kindNames = new Set(Object.keys(config.kinds));
-  const brandNames = new Set(Object.keys(config.brands));
-  brandNames.add('global'); // 'global' is always valid
-
-  for (const filePath of files) {
-    try {
-      const ext = extname(filePath).toLowerCase();
-      if (ext === '.yaml' || ext === '.yml') {
-        const parsed = parseKnowledgeYamlFile(
-          filePath,
-          baseDir,
-          domainNames,
-          kindNames,
-          brandNames,
-          warnings,
-        );
-        units.push(...parsed);
-      } else {
-        const unit = parseKnowledgeFile(
-          filePath,
-          baseDir,
-          domainNames,
-          kindNames,
-          brandNames,
-          warnings,
-        );
-        if (unit) {
-          units.push(unit);
-        }
-      }
-    } catch (err) {
-      errors.push({
-        filePath,
-        message: err instanceof Error ? err.message : String(err),
-        error: err instanceof Error ? err : undefined,
-      });
-    }
-  }
-
-  // Detect duplicate IDs — silently taking the first would lose units in the BM25 index
-  const idSeen = new Map<string, string>(); // id → first unit title
-  for (const unit of units) {
-    const first = idSeen.get(unit.id);
-    if (first) {
-      warnings.push({
-        filePath: unit.id,
-        message: `Duplicate ID "${unit.id}" (also used by "${first}"). Add explicit id: frontmatter to disambiguate. The second unit will be silently dropped by the search index.`,
-      });
-    } else {
-      idSeen.set(unit.id, unit.title);
-    }
-  }
-
-  return { units, errors, warnings };
-}
-
-/**
- * Parse a single knowledge markdown file.
- */
-function parseKnowledgeFile(
-  filePath: string,
-  baseDir: string,
-  domainNames: Set<string>,
-  kindNames: Set<string>,
-  brandNames: Set<string>,
-  warnings: LoadWarning[],
-): KnowledgeUnit | null {
-  const content = readFileSync(filePath, 'utf-8');
-  const { data, content: body } = matter(content);
-  const frontmatter = data as KnowledgeFrontmatter;
-
-  // Validate required fields
-  if (!frontmatter.title && !frontmatter.id) {
-    warnings.push({
-      filePath,
-      message: 'Missing title and id in frontmatter; using filename',
-    });
-  }
-
-  // Generate ID from filename if not provided.
-  // Include brand prefix so cross-brand files with the same filename stay unique.
-  const id =
-    frontmatter.id || generateIdFromFilename(filePath, frontmatter.brand);
-  const title = frontmatter.title || id;
-
-  // Validate domain
-  const domain = frontmatter.domain || 'default';
-  if (!domainNames.has(domain) && domainNames.size > 0) {
-    warnings.push({
-      filePath,
-      field: 'domain',
-      message: `Unknown domain "${domain}". Known domains: ${Array.from(domainNames).join(', ')}`,
-    });
-  }
-
-  // Validate brand
-  if (frontmatter.brand && !brandNames.has(frontmatter.brand)) {
-    warnings.push({
-      filePath,
-      field: 'brand',
-      message: `Unknown brand "${frontmatter.brand}". Known brands: ${Array.from(brandNames).join(', ')}`,
-    });
-  }
-
-  // Parse kind (default: 'rule')
-  const kind = frontmatter.kind || 'rule';
-  if (frontmatter.kind && kindNames.size > 0 && !kindNames.has(kind)) {
-    warnings.push({
-      filePath,
-      field: 'kind',
-      message: `Unknown kind "${kind}". Known kinds: ${Array.from(kindNames).join(', ')}`,
-    });
-  }
-
-  // Parse enforcement (with backward compat for 'severity' field)
-  let enforcement: Enforcement = 'may';
-  const rawEnforcement = frontmatter.enforcement || frontmatter.severity;
-  if (rawEnforcement) {
-    const parsed = parseEnforcement(rawEnforcement);
-    if (parsed) {
-      enforcement = parsed;
-    } else {
-      warnings.push({
-        filePath,
-        field: 'enforcement',
-        message: `Invalid enforcement "${rawEnforcement}". Using "may".`,
-      });
-    }
-  }
-
-  // Parse attributes
-  const attributes =
-    ((frontmatter as Record<string, unknown>).attributes as Record<
-      string,
-      unknown
-    >) || {};
-
-  // Build provenance
-  const provenance = frontmatter.provenance
-    ? {
-        ...createFileProvenance(),
-        ...frontmatter.provenance,
-      }
-    : createFileProvenance();
-
-  return {
-    id,
-    title,
-    body: body.trim(),
-    domain,
-    kind,
-    system: frontmatter.system,
-    brand: frontmatter.brand,
-    tags: frontmatter.tags || [],
-    enforcement,
-    attributes,
-    provenance,
-    sourcePath: relative(baseDir, filePath),
-  };
-}
-
-/**
- * Generate a slug ID from a filename.
- * When a brand is provided, prefixes the slug with `{brand}-` so that
- * cross-brand files with the same filename (e.g. voice-principles.md in both
- * `shared/` and `tidal/`) produce unique IDs.
- */
-function generateIdFromFilename(filePath: string, brand?: string): string {
-  const ext = extname(filePath);
-  const name = basename(filePath, ext)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-  return brand ? `${brand}-${name}` : name;
-}
-
-/**
- * Known metadata keys in YAML knowledge files.
- * Everything else goes into attributes.
- */
-const KNOWN_YAML_KEYS = new Set([
-  'id',
-  'title',
-  'domain',
-  'kind',
-  'system',
-  'brand',
-  'tags',
-  'enforcement',
-  'severity',
-  'provenance',
-  'body',
-  'entries',
-]);
-
-/**
- * Parse a YAML knowledge file.
- *
- * Supports two modes:
- * - Single-unit: top-level YAML becomes one KnowledgeUnit
- * - Multi-unit: when an `entries` array key exists, each entry becomes its own unit,
- *   inheriting top-level metadata as defaults
- */
-function parseKnowledgeYamlFile(
-  filePath: string,
-  baseDir: string,
-  domainNames: Set<string>,
-  kindNames: Set<string>,
-  brandNames: Set<string>,
-  warnings: LoadWarning[],
-): KnowledgeUnit[] {
-  const content = readFileSync(filePath, 'utf-8');
-  const parsed = parseYaml(content) as Record<string, unknown>;
-
-  if (!parsed || typeof parsed !== 'object') {
-    warnings.push({
-      filePath,
-      message: 'YAML file parsed to null or non-object',
-    });
-    return [];
-  }
-
-  const entries = parsed.entries as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(entries)) {
-    // Multi-unit mode: each entry becomes a unit, inheriting top-level defaults
-    return entries.map((entry, index) =>
-      buildYamlUnit(
-        filePath,
-        baseDir,
-        parsed,
-        entry,
-        index,
-        domainNames,
-        kindNames,
-        brandNames,
-        warnings,
-      ),
-    );
-  }
-
-  // Single-unit mode
-  return [
-    buildYamlUnit(
-      filePath,
-      baseDir,
-      parsed,
-      undefined,
-      0,
-      domainNames,
-      kindNames,
-      brandNames,
-      warnings,
-    ),
-  ];
-}
-
-/**
- * Build a KnowledgeUnit from YAML data, with optional entry override.
- */
-function buildYamlUnit(
-  filePath: string,
-  baseDir: string,
-  topLevel: Record<string, unknown>,
-  entry: Record<string, unknown> | undefined,
-  index: number,
-  domainNames: Set<string>,
-  kindNames: Set<string>,
-  brandNames: Set<string>,
-  warnings: LoadWarning[],
-): KnowledgeUnit {
-  // Merge top-level defaults with entry overrides
-  const merged = entry ? { ...topLevel, ...entry } : { ...topLevel };
-
-  // Extract standard fields
-  const topLevelBrand = topLevel.brand ? String(topLevel.brand) : undefined;
-  const parentId = String(
-    topLevel.id || generateIdFromFilename(filePath, topLevelBrand),
-  );
-  const id = entry ? String(entry.id || `${parentId}--${index}`) : parentId;
-  const title = String(merged.title || id);
-  const domain = String(merged.domain || 'default');
-  const kind = String(merged.kind || 'rule');
-  const system = merged.system ? String(merged.system) : undefined;
-  const brand = merged.brand ? String(merged.brand) : undefined;
-  const tags = Array.isArray(merged.tags)
-    ? (merged.tags as unknown[]).map(String)
-    : [];
-
-  // Validate domain
-  if (domainNames.size > 0 && !domainNames.has(domain)) {
-    warnings.push({
-      filePath,
-      field: 'domain',
-      message: `Unknown domain "${domain}" in YAML unit "${id}"`,
-    });
-  }
-
-  // Validate kind
-  if (kindNames.size > 0 && !kindNames.has(kind)) {
-    warnings.push({
-      filePath,
-      field: 'kind',
-      message: `Unknown kind "${kind}" in YAML unit "${id}"`,
-    });
-  }
-
-  // Validate brand
-  if (brand && !brandNames.has(brand)) {
-    warnings.push({
-      filePath,
-      field: 'brand',
-      message: `Unknown brand "${brand}" in YAML unit "${id}"`,
-    });
-  }
-
-  // Parse enforcement
-  let enforcement: Enforcement = 'may';
-  const rawEnforcement = (merged.enforcement || merged.severity) as
-    | string
-    | undefined;
-  if (rawEnforcement) {
-    const parsed = parseEnforcement(String(rawEnforcement));
-    if (parsed) {
-      enforcement = parsed;
-    } else {
-      warnings.push({
-        filePath,
-        field: 'enforcement',
-        message: `Invalid enforcement "${rawEnforcement}" in YAML unit "${id}". Using "may".`,
-      });
-    }
-  }
-
-  // Collect attributes: everything that's not a known metadata key
-  const attributes: Record<string, unknown> = {};
-  const mergedAttrs = (merged.attributes || {}) as Record<string, unknown>;
-  // Explicit attributes field takes priority
-  Object.assign(attributes, mergedAttrs);
-  // Also collect any unknown top-level keys from the entry as attributes
-  if (entry) {
-    for (const [key, value] of Object.entries(entry)) {
-      if (!KNOWN_YAML_KEYS.has(key) && key !== 'attributes') {
-        attributes[key] = value;
-      }
-    }
-  }
-
-  // Build provenance
-  const rawProvenance = merged.provenance as
-    | Partial<import('./provenance.js').Provenance>
-    | undefined;
-  const provenance = rawProvenance
-    ? { ...createFileProvenance(), ...rawProvenance }
-    : createFileProvenance();
-
-  // Body: use explicit body field, or stringify the entry data for structured entries
-  let body = '';
-  if (typeof merged.body === 'string') {
-    body = merged.body.trim();
-  } else if (entry) {
-    // For structured entries without explicit body, create a readable representation
-    const bodyData = { ...entry };
-    for (const key of [
-      'id',
-      'title',
-      'domain',
-      'kind',
-      'system',
-      'brand',
-      'tags',
-      'enforcement',
-      'severity',
-      'provenance',
-      'body',
-    ]) {
-      delete bodyData[key];
-    }
-    if (Object.keys(bodyData).length > 0) {
-      body = Object.entries(bodyData)
-        .map(
-          ([k, v]) =>
-            `**${k}:** ${Array.isArray(v) ? v.join(', ') : String(v)}`,
-        )
-        .join('\n\n');
-    }
-  }
-
-  return {
-    id,
-    title,
-    body,
-    domain,
-    kind,
-    system,
-    brand,
-    tags,
-    enforcement,
-    attributes,
-    provenance,
-    sourcePath: relative(baseDir, filePath),
-  };
+  return loadFiles(files, config, baseDir);
 }
 
 /**
@@ -486,11 +113,6 @@ function buildYamlUnit(
  */
 export function loadKnowledgeSync(options: LoadOptions): LoadResult {
   const { sources, config, baseDir = process.cwd() } = options;
-  const units: KnowledgeUnit[] = [];
-  const errors: LoadError[] = [];
-  const warnings: LoadWarning[] = [];
-
-  // Find all matching files (sync)
   const files = fg.sync(sources, {
     cwd: baseDir,
     absolute: true,
@@ -498,45 +120,630 @@ export function loadKnowledgeSync(options: LoadOptions): LoadResult {
     ignore: ['**/node_modules/**', '**/dist/**'],
   });
 
-  const domainNames = new Set(Object.keys(config.domains));
-  const kindNames = new Set(Object.keys(config.kinds));
-  const brandNames = new Set(Object.keys(config.brands));
-  brandNames.add('global');
+  return loadFiles(files, config, baseDir);
+}
+
+function loadFiles(
+  files: string[],
+  config: MadrigalConfig,
+  baseDir: string,
+): LoadResult {
+  const units: ParsedUnit[] = [];
+  const errors: LoadError[] = [];
+  const warnings: LoadWarning[] = [];
 
   for (const filePath of files) {
     try {
       const ext = extname(filePath).toLowerCase();
       if (ext === '.yaml' || ext === '.yml') {
-        const parsed = parseKnowledgeYamlFile(
-          filePath,
-          baseDir,
-          domainNames,
-          kindNames,
-          brandNames,
-          warnings,
+        units.push(
+          ...parseKnowledgeYamlFile(filePath, baseDir, config, warnings),
         );
-        units.push(...parsed);
       } else {
-        const unit = parseKnowledgeFile(
+        const unit = parseKnowledgeMarkdownFile(
           filePath,
           baseDir,
-          domainNames,
-          kindNames,
-          brandNames,
+          config,
           warnings,
         );
-        if (unit) {
-          units.push(unit);
-        }
+        if (unit) units.push(unit);
       }
     } catch (err) {
       errors.push({
         filePath,
+        code: 'parse-error',
         message: err instanceof Error ? err.message : String(err),
         error: err instanceof Error ? err : undefined,
       });
     }
   }
 
-  return { units, errors, warnings };
+  const deduped = excludeDuplicateIds(units, errors);
+  resolveRelationships(deduped, config, warnings);
+
+  return {
+    units: deduped.map(stripInternalFields),
+    errors,
+    warnings,
+  };
+}
+
+function parseKnowledgeMarkdownFile(
+  filePath: string,
+  baseDir: string,
+  config: MadrigalConfig,
+  warnings: LoadWarning[],
+): ParsedUnit | null {
+  const content = readFileSync(filePath, 'utf-8');
+  const { data, content: body } = matter(content);
+  const frontmatter = { ...(data as KnowledgeFrontmatter) };
+
+  return buildUnit({
+    filePath,
+    baseDir,
+    config,
+    frontmatter,
+    body: body.trim(),
+    warnings,
+  });
+}
+
+function parseKnowledgeYamlFile(
+  filePath: string,
+  baseDir: string,
+  config: MadrigalConfig,
+  warnings: LoadWarning[],
+): ParsedUnit[] {
+  const content = readFileSync(filePath, 'utf-8');
+  const parsed = parseYaml(content) as Record<string, unknown>;
+
+  if (!parsed || typeof parsed !== 'object') {
+    warnings.push({
+      filePath,
+      code: 'yaml-non-object',
+      severity: 'error',
+      message: 'YAML file parsed to null or non-object',
+    });
+    return [];
+  }
+
+  const entries = parsed.entries as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(entries)) {
+    return [
+      buildUnit({
+        filePath,
+        baseDir,
+        config,
+        frontmatter: { ...parsed },
+        body: typeof parsed.body === 'string' ? parsed.body.trim() : '',
+        warnings,
+      }),
+    ];
+  }
+
+  return entries.map((entry, index) => {
+    const frontmatter = { ...parsed, ...entry };
+    delete frontmatter.entries;
+    const body =
+      typeof frontmatter.body === 'string'
+        ? frontmatter.body.trim()
+        : stringifyStructuredBody(entry);
+
+    return buildUnit({
+      filePath,
+      baseDir,
+      config,
+      frontmatter,
+      body,
+      warnings,
+      entryIndex: index,
+    });
+  });
+}
+
+function buildUnit(options: {
+  filePath: string;
+  baseDir: string;
+  config: MadrigalConfig;
+  frontmatter: Record<string, unknown>;
+  body: string;
+  warnings: LoadWarning[];
+  entryIndex?: number;
+}): ParsedUnit {
+  const { filePath, baseDir, config, frontmatter, body, warnings, entryIndex } =
+    options;
+  const sourcePath = normalizePath(relative(baseDir, filePath));
+  const schema = config.schema;
+  const explicitIdField = schema.id?.field || 'id';
+  const titleField = schema.title?.field || 'title';
+
+  const rawExplicitId = frontmatter[explicitIdField];
+  const baseId =
+    typeof rawExplicitId === 'string' && rawExplicitId.trim()
+      ? rawExplicitId.trim()
+      : generateId(filePath, baseDir, config);
+  const id = entryIndex === undefined ? baseId : `${baseId}--${entryIndex}`;
+
+  const rawTitle = frontmatter[titleField];
+  const title =
+    typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim() : id;
+  if (!rawTitle && !rawExplicitId) {
+    warnings.push({
+      filePath,
+      code: 'missing-title',
+      severity: 'warning',
+      message:
+        'Missing title and id in frontmatter; using generated ID as title',
+      unitId: id,
+    });
+  }
+
+  const kind = resolveKind(sourcePath, frontmatter, config);
+  const tags = normalizeStringArray(frontmatter.tags);
+  const attributes = buildAttributes(frontmatter, config);
+
+  applyVocabularies(attributes, config.vocabularies, {
+    filePath,
+    unitId: id,
+    warnings,
+  });
+
+  const domain = getString(attributes.domain);
+  const brand = getString(attributes.brand);
+  const system = getString(attributes.system);
+  const enforcement = parseUnitEnforcement(frontmatter, warnings, filePath, id);
+
+  if (config.domains && Object.keys(config.domains).length > 0 && domain) {
+    if (!config.domains[domain]) {
+      warnings.push({
+        filePath,
+        code: 'unknown-domain',
+        severity: 'error',
+        field: 'domain',
+        unitId: id,
+        message: `Unknown domain "${domain}". Known domains: ${Object.keys(config.domains).join(', ')}`,
+      });
+    }
+  }
+
+  if (config.kinds && Object.keys(config.kinds).length > 0 && kind) {
+    if (!config.kinds[kind]) {
+      warnings.push({
+        filePath,
+        code: 'unknown-kind',
+        severity: 'error',
+        field: 'kind',
+        unitId: id,
+        message: `Unknown kind "${kind}". Known kinds: ${Object.keys(config.kinds).join(', ')}`,
+      });
+    }
+  }
+
+  if (config.brands && Object.keys(config.brands).length > 0 && brand) {
+    const brandNames = new Set([...Object.keys(config.brands), 'global']);
+    if (!brandNames.has(brand)) {
+      warnings.push({
+        filePath,
+        code: 'unknown-brand',
+        severity: 'error',
+        field: 'brand',
+        unitId: id,
+        message: `Unknown brand "${brand}". Known brands: ${Array.from(brandNames).join(', ')}`,
+      });
+    }
+  }
+
+  const provenance = frontmatter.provenance
+    ? {
+        ...createFileProvenance(),
+        ...(frontmatter.provenance as Record<string, unknown>),
+      }
+    : createFileProvenance();
+
+  const relationships = config.schema.relationships?.wikilinks
+    ? extractWikiLinks(body)
+    : [];
+
+  const unit: ParsedUnit = {
+    id,
+    title,
+    body,
+    kind,
+    tags,
+    sourcePath,
+    frontmatter,
+    attributes,
+    relationships,
+    provenance,
+    domain,
+    system,
+    brand,
+    enforcement,
+    _relationshipTargets: relationships.map((relationship) => ({
+      relationship,
+      targetKey: relationship.target,
+    })),
+  };
+
+  validateRequiredFields(unit, config, warnings, filePath);
+
+  return unit;
+}
+
+function buildAttributes(
+  frontmatter: Record<string, unknown>,
+  config: MadrigalConfig,
+): Record<string, unknown> {
+  const explicitAttrs =
+    frontmatter.attributes && typeof frontmatter.attributes === 'object'
+      ? (frontmatter.attributes as Record<string, unknown>)
+      : {};
+  const attributes: Record<string, unknown> = { ...explicitAttrs };
+
+  if (config.schema.preserveUnknownFrontmatter !== false) {
+    const extraCoreKeys = new Set<string>();
+    extraCoreKeys.add(config.schema.id?.field || 'id');
+    extraCoreKeys.add(config.schema.kind?.field || 'kind');
+    extraCoreKeys.add(config.schema.title?.field || 'title');
+
+    for (const [key, value] of Object.entries(frontmatter)) {
+      if (
+        !CORE_FRONTMATTER_KEYS.has(key) &&
+        !extraCoreKeys.has(key) &&
+        key !== 'attributes'
+      ) {
+        attributes[key] = value;
+      }
+    }
+  }
+
+  for (const key of ['domain', 'brand', 'system']) {
+    if (frontmatter[key] !== undefined) attributes[key] = frontmatter[key];
+  }
+
+  return attributes;
+}
+
+function resolveKind(
+  sourcePath: string,
+  frontmatter: Record<string, unknown>,
+  config: MadrigalConfig,
+): string {
+  const kindField = config.schema.kind?.field || 'kind';
+  const fieldValue = frontmatter[kindField];
+  if (typeof fieldValue === 'string' && fieldValue.trim()) {
+    return fieldValue.trim();
+  }
+
+  for (const [pattern, kind] of Object.entries(
+    config.schema.kind?.byPath || {},
+  )) {
+    if (matchesGlob(sourcePath, pattern)) return kind;
+  }
+
+  return config.schema.kind?.default || 'rule';
+}
+
+function parseUnitEnforcement(
+  frontmatter: Record<string, unknown>,
+  warnings: LoadWarning[],
+  filePath: string,
+  unitId: string,
+): Enforcement | undefined {
+  const raw = frontmatter.enforcement || frontmatter.severity;
+  if (!raw) return undefined;
+
+  const parsed = parseEnforcement(String(raw));
+  if (parsed) return parsed;
+
+  warnings.push({
+    filePath,
+    code: 'invalid-enforcement',
+    severity: 'error',
+    field: 'enforcement',
+    unitId,
+    message: `Invalid enforcement "${String(raw)}".`,
+  });
+  return undefined;
+}
+
+function applyVocabularies(
+  attributes: Record<string, unknown>,
+  vocabularies: Record<string, VocabularyConfig>,
+  context: {
+    filePath: string;
+    unitId: string;
+    warnings: LoadWarning[];
+  },
+): void {
+  for (const [field, vocabulary] of Object.entries(vocabularies)) {
+    if (attributes[field] === undefined) continue;
+    attributes[field] = normalizeVocabularyValue(
+      attributes[field],
+      field,
+      vocabulary,
+      context,
+    );
+  }
+}
+
+function normalizeVocabularyValue(
+  value: unknown,
+  field: string,
+  vocabulary: VocabularyConfig,
+  context: {
+    filePath: string;
+    unitId: string;
+    warnings: LoadWarning[];
+  },
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      normalizeVocabularyValue(item, field, vocabulary, context),
+    );
+  }
+
+  if (typeof value !== 'string') return value;
+
+  const canonical = vocabulary.aliases?.[value] || value;
+  const allowed = new Set(vocabulary.values || []);
+  if (allowed.size > 0 && !allowed.has(canonical)) {
+    context.warnings.push({
+      filePath: context.filePath,
+      code: 'invalid-vocabulary',
+      severity: 'error',
+      field,
+      unitId: context.unitId,
+      message: `Invalid ${field} value "${value}". Allowed values: ${Array.from(allowed).join(', ')}`,
+    });
+  }
+
+  return canonical;
+}
+
+function validateRequiredFields(
+  unit: KnowledgeUnit,
+  config: MadrigalConfig,
+  warnings: LoadWarning[],
+  filePath: string,
+): void {
+  const required = config.kinds[unit.kind]?.required || [];
+  for (const field of required) {
+    const value = getUnitFieldValue(unit, field);
+    if (isMissing(value)) {
+      warnings.push({
+        filePath,
+        code: 'missing-required-field',
+        severity: 'error',
+        field,
+        unitId: unit.id,
+        message: `Missing required field "${field}" for kind "${unit.kind}".`,
+      });
+    }
+  }
+}
+
+function getUnitFieldValue(unit: KnowledgeUnit, field: string): unknown {
+  if (field === 'id') return unit.id;
+  if (field === 'title') return unit.title;
+  if (field === 'kind') return unit.kind;
+  if (field === 'body') return unit.body;
+  if (field === 'tags') return unit.tags;
+  if (field === 'domain') return unit.domain ?? unit.attributes.domain;
+  if (field === 'brand') return unit.brand ?? unit.attributes.brand;
+  if (field === 'system') return unit.system ?? unit.attributes.system;
+  if (field === 'enforcement') return unit.enforcement;
+  if (unit.attributes[field] !== undefined) return unit.attributes[field];
+  return unit.frontmatter[field];
+}
+
+function isMissing(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string') return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+function excludeDuplicateIds(
+  units: ParsedUnit[],
+  errors: LoadError[],
+): ParsedUnit[] {
+  const byId = new Map<string, ParsedUnit[]>();
+  for (const unit of units) {
+    const existing = byId.get(unit.id) || [];
+    existing.push(unit);
+    byId.set(unit.id, existing);
+  }
+
+  const duplicateIds = new Set<string>();
+  for (const [id, records] of byId.entries()) {
+    if (records.length <= 1) continue;
+    duplicateIds.add(id);
+    errors.push({
+      filePath: id,
+      code: 'duplicate-id',
+      message: `Duplicate ID "${id}" across: ${records.map((u) => u.sourcePath).join(', ')}. Conflicting records were excluded.`,
+    });
+  }
+
+  return units.filter((unit) => !duplicateIds.has(unit.id));
+}
+
+function resolveRelationships(
+  units: ParsedUnit[],
+  config: MadrigalConfig,
+  warnings: LoadWarning[],
+): void {
+  if (!config.schema.relationships?.wikilinks) return;
+
+  const index = buildRelationshipIndex(units, config);
+
+  for (const unit of units) {
+    for (const pending of unit._relationshipTargets || []) {
+      const targetId = index.get(normalizeLookupKey(pending.targetKey));
+      if (targetId) {
+        pending.relationship.targetId = targetId;
+        pending.relationship.resolved = true;
+      } else {
+        pending.relationship.resolved = false;
+        warnings.push({
+          filePath: unit.sourcePath || unit.id,
+          code: 'unresolved-relationship',
+          severity: 'error',
+          unitId: unit.id,
+          message: `Unresolved wikilink target "${pending.targetKey}".`,
+        });
+      }
+    }
+  }
+}
+
+function buildRelationshipIndex(
+  units: KnowledgeUnit[],
+  config: MadrigalConfig,
+): Map<string, string> {
+  const index = new Map<string, string>();
+  const aliasToCanonical = new Map<string, string>();
+  for (const vocabulary of Object.values(config.vocabularies)) {
+    for (const [alias, canonical] of Object.entries(vocabulary.aliases || {})) {
+      aliasToCanonical.set(normalizeLookupKey(alias), canonical);
+    }
+  }
+
+  for (const unit of units) {
+    addLookup(index, unit.id, unit.id);
+    addLookup(index, unit.title, unit.id);
+    addLookup(index, slug(unit.title), unit.id);
+    if (unit.sourcePath) {
+      const withoutExt = unit.sourcePath.replace(/\.[^.]+$/, '');
+      addLookup(index, withoutExt, unit.id);
+      addLookup(index, basename(withoutExt), unit.id);
+      addLookup(index, slug(basename(withoutExt)), unit.id);
+    }
+  }
+
+  for (const [aliasKey, canonical] of aliasToCanonical.entries()) {
+    const targetId =
+      index.get(normalizeLookupKey(canonical)) ||
+      index.get(normalizeLookupKey(slug(canonical)));
+    if (targetId && !index.has(aliasKey)) index.set(aliasKey, targetId);
+  }
+
+  return index;
+}
+
+function addLookup(index: Map<string, string>, key: string, id: string): void {
+  const normalized = normalizeLookupKey(key);
+  if (normalized && !index.has(normalized)) index.set(normalized, id);
+}
+
+function extractWikiLinks(body: string): KnowledgeRelationship[] {
+  const relationships: KnowledgeRelationship[] = [];
+  const seen = new Set<string>();
+  const regex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+
+  for (const match of body.matchAll(regex)) {
+    const target = match[1].trim();
+    const label = match[2]?.trim();
+    const key = `${target}|${label || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    relationships.push({
+      type: 'wikilink',
+      target,
+      label,
+      resolved: false,
+    });
+  }
+
+  return relationships;
+}
+
+function stripInternalFields(unit: ParsedUnit): KnowledgeUnit {
+  const { _relationshipTargets, ...clean } = unit;
+  return clean;
+}
+
+function generateId(
+  filePath: string,
+  baseDir: string,
+  config: MadrigalConfig,
+): string {
+  const strategy = config.schema.id?.strategy || 'path';
+  if (strategy === 'filename') {
+    return slug(basename(filePath, extname(filePath)));
+  }
+
+  const sourcePath = normalizePath(relative(baseDir, filePath));
+  const withoutExtension = sourcePath.replace(/\.[^.]+$/, '');
+  const segments = withoutExtension.split('/');
+  const last = segments[segments.length - 1];
+  if (last === 'index' || last === '_index') {
+    segments.pop();
+  }
+
+  return slug(segments.join('/'));
+}
+
+function stringifyStructuredBody(entry: Record<string, unknown>): string {
+  const bodyData = { ...entry };
+  for (const key of CORE_FRONTMATTER_KEYS) delete bodyData[key];
+
+  return Object.entries(bodyData)
+    .map(([k, v]) => `**${k}:** ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+    .join('\n\n');
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(String);
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
+function normalizeLookupKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function slug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function matchesGlob(path: string, pattern: string): boolean {
+  const normalizedPath = normalizePath(path);
+  const normalizedPattern = normalizePath(pattern);
+  const regex = new RegExp(`^${globToRegex(normalizedPattern)}$`);
+  return regex.test(normalizedPath);
+}
+
+function globToRegex(pattern: string): string {
+  let output = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i];
+    const next = pattern[i + 1];
+    if (char === '*' && next === '*') {
+      output += '.*';
+      i++;
+    } else if (char === '*') {
+      output += '[^/]*';
+    } else if (char === '?') {
+      output += '[^/]';
+    } else {
+      output += escapeRegex(char);
+    }
+  }
+  return output;
+}
+
+function escapeRegex(char: string): string {
+  return /[\\^$+?.()|[\]{}]/.test(char) ? `\\${char}` : char;
 }

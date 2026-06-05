@@ -1,3 +1,4 @@
+import { effectiveEnforcement } from '../enforcement.js';
 import type { KnowledgeUnit } from '../schema/index.js';
 import {
   fallbackClusterNames,
@@ -115,9 +116,9 @@ export async function generateTopology(
   const nodes: TopologyNode[] = units.map((unit, i) => ({
     id: unit.id,
     title: unit.title,
-    domain: unit.domain,
+    domain: unit.domain || 'default',
     kind: unit.kind,
-    enforcement: unit.enforcement,
+    enforcement: effectiveEnforcement(unit.enforcement),
     brand: unit.brand,
     tags: unit.tags,
     excerpt: unit.body.slice(0, 200).replace(/\n/g, ' ').trim(),

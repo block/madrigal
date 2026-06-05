@@ -38,20 +38,21 @@ export const jsonBundleFormat: Format = {
         unitCount: units.length,
       },
       units: units.map((unit) => ({
-        ...unit,
         // Ensure consistent field ordering in output
         id: unit.id,
         title: unit.title,
         body: unit.body,
-        domain: unit.domain,
         kind: unit.kind,
+        tags: unit.tags,
+        sourcePath: unit.sourcePath,
+        frontmatter: unit.frontmatter,
+        attributes: unit.attributes,
+        relationships: unit.relationships,
+        provenance: unit.provenance,
+        domain: unit.domain,
         system: unit.system,
         brand: unit.brand,
-        tags: unit.tags,
         enforcement: unit.enforcement,
-        attributes: unit.attributes,
-        provenance: unit.provenance,
-        sourcePath: unit.sourcePath,
       })),
     };
 

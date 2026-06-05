@@ -8,6 +8,7 @@ export type {
   CreateKnowledgeUnit,
   Domain,
   KnowledgeFrontmatter,
+  KnowledgeRelationship,
   KnowledgeUnit,
   KnowledgeUnitWithEmbedding,
   UpdateKnowledgeUnit,
