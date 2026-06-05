@@ -52,7 +52,7 @@
     "clean": "rm -rf dist",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish",
+    "release": "pnpm build && pnpm pack",
     "prepublishOnly": "pnpm build",
     "prepare": "lefthook install"
   },

@@ -317,7 +317,7 @@ ln -sf "$(pwd)/skills/{skill-name}/SKILL.md" ~/.claude/skills/{skill-name}/SKILL
 ## Release Workflow
 
 Madrigal uses [Changesets](https://github.com/changesets/changesets) for
-versioning and npm publishing.
+versioning.
 
 For a release-bearing change, run:
 
@@ -325,10 +325,21 @@ For a release-bearing change, run:
 pnpm changeset
 ```
 
-After the change lands on `main`, the `Release` GitHub Actions workflow creates
-a version PR when changesets are pending. When that version PR lands, the same
-workflow builds Madrigal and publishes it to npm with provenance. The workflow
-expects the npm automation token in `MADRIGAL_NPM_PUBLISH_TOKEN`.
+After the change lands on `main`, the `Version Packages` GitHub Actions
+workflow creates a version PR when changesets are pending. Merging to `main`
+does not publish Madrigal.
+
+To publish a GitHub Release tarball, merge the version PR and push a matching
+tag:
+
+```bash
+VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version)")
+git tag "anarchitecture-madrigal@$VERSION"
+git push origin "anarchitecture-madrigal@$VERSION"
+```
+
+The `Publish tarball to GitHub Release` workflow can also be run manually with
+the package version from `package.json`.
 
 Manual release commands are also available:
 

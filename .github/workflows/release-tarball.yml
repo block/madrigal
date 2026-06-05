@@ -1,0 +1,102 @@
+name: Publish tarball to GitHub Release
+
+# Explicit distribution channel while main-branch publishing is disabled. Packs
+# @anarchitecture/madrigal and attaches the .tgz to a GitHub Release, so
+# consumers can install it directly:
+#
+#   npm install https://github.com/block/madrigal/releases/download/<tag>/<file>.tgz
+#
+# Triggered by pushing a tag of the form `anarchitecture-madrigal@<version>` or
+# by manual workflow_dispatch.
+
+on:
+  push:
+    tags:
+      - "anarchitecture-madrigal@*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (must match package.json)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tarball-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tarball:
+    name: Pack and release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # No setup-node and no pnpm/action-setup -- both would trip zizmor's
+      # cache-poisoning rule because any GitHub-official setup action is
+      # treated as cache-capable regardless of whether caching is enabled.
+      # ubuntu-latest ships Node 20 + corepack, which satisfies our
+      # engines.node (>=18). Corepack reads `packageManager` from root
+      # package.json to install the exact pinned pnpm version with no
+      # cross-branch cache store.
+      - run: node --version && corepack enable
+
+      - run: pnpm install --frozen-lockfile --registry=https://registry.npmjs.org
+
+      - run: npm ci --prefix src/dev/ui --no-audit --no-fund --registry=https://registry.npmjs.org --replace-registry-host=always
+
+      - name: Build
+        run: pnpm build
+
+      - name: Validate tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          PACKAGE_VERSION="$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version)")"
+          if [ "$EVENT_NAME" = "push" ]; then
+            EXPECTED_TAG="anarchitecture-madrigal@$PACKAGE_VERSION"
+            if [ "$REF_NAME" != "$EXPECTED_TAG" ]; then
+              echo "Tag must be $EXPECTED_TAG for package.json version $PACKAGE_VERSION" >&2
+              exit 1
+            fi
+          elif [ "$INPUT_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Input version must match package.json version $PACKAGE_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Pack
+        run: |
+          mkdir -p dist-tarball
+          pnpm pack --pack-destination "$GITHUB_WORKSPACE/dist-tarball"
+          ls -la dist-tarball
+
+      # Resolve the release tag. Inputs from workflow_dispatch are attacker-
+      # controlled (anyone with Actions write can trigger). Pass them in via
+      # `env:` and reference as shell variables so they can't be interpolated
+      # as shell syntax -- that's what the semgrep shell-injection rule wants.
+      - name: Resolve tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="anarchitecture-madrigal@$INPUT_VERSION"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            dist-tarball/*.tgz
